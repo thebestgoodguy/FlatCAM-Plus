@@ -426,7 +426,7 @@ class CNCControlUI:
         self.jog_title = FCLabel(f"<b>{_('Jogging')}</b>")
         self.jog_layout.addWidget(self.jog_title, 0, 0, 1, 2)
 
-        self.jog_wdg = FCJog()
+        self.jog_wdg = FCJog(self.app)
         self.jog_layout.addWidget(self.jog_wdg, 1, 0, 1, 2)
 
         self.jog_step_entry = FCDoubleSpinner()
@@ -446,7 +446,7 @@ class CNCControlUI:
         self.layout.addWidget(self.ctrl_frame)
         self.ctrl_layout = GLay(self.ctrl_frame)
 
-        self.zero_wdg = FCZeroAxes()
+        self.zero_wdg = FCZeroAxes(self.app)
         self.ctrl_layout.addWidget(self.zero_wdg, 0, 0, 1, 2)
 
         self.unlock_button = FCButton(_("Unlock ($X)"))
