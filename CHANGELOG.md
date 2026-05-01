@@ -1,4 +1,4 @@
-FlatCAM Evo BETA (c) 2019 - by Marius Stanciu
+FlatCAM Plus BETA (c) 2026 - by Sadri ERCAN
 
 Based on FlatCAM: 
 2D Computer-Aided PCB Manufacturing by (c) 2014-2016 Juan Pablo Caram

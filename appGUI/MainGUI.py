@@ -7,8 +7,8 @@
 # ##########################################################
 
 # ##########################################################
-# File Modified (major mod): Marius Adrian Stanciu         #
-# Date: 3/10/2019                                          #
+# File Modified (major mod): Sadri ERCAN                   #
+# Date: 5/1/2026                                           #
 # ##########################################################
 from PyQt6.QtCore import QSettings
 

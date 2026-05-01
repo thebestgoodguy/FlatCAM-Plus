@@ -4,7 +4,7 @@
 # Author: Juan Pablo Caram (c)                              #
 # Date: 2/5/2014                                            #
 # MIT Licence                                               #
-# Modified by Marius Stanciu (2019)                         #
+# Modified by Sadri ERCAN (2026)                         #
 # ###########################################################
 
 from PyQt6 import QtGui, QtWidgets
@@ -3364,9 +3364,9 @@ class App(QtCore.QObject):
                 self.prog_grid_lay.addWidget(FCLabel('%s' % _("FlatCAM Author")), 1, 1)
 
                 # FlatCAM EVO Author
-                self.prog_grid_lay.addWidget(FCLabel('%s' % "Marius Stanciu"), 2, 0)
+                self.prog_grid_lay.addWidget(FCLabel('%s' % "Sadri ERCAN"), 2, 0)
                 self.prog_grid_lay.addWidget(FCLabel('%s' % _("FlatCAM Plus Author/Maintainer")), 2, 1)
-                self.prog_grid_lay.addWidget(FCLabel('%s' % "<marius_adrian@yahoo.com>"), 2, 2)
+                self.prog_grid_lay.addWidget(FCLabel('%s' % ""), 2, 2)
                 self.prog_grid_lay.addWidget(FCLabel(''), 3, 0)
 
                 # randomize the order of the programmers at each launch
@@ -3412,7 +3412,7 @@ class App(QtCore.QObject):
                     },
                     {
                         'language': 'Romanian',
-                        'authors': [("Marius Stanciu", '<marius_adrian@yahoo.com>')]
+                        'authors': [("Sadri ERCAN", '')]
                     },
                     {
                         'language': 'Russian',

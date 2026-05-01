@@ -1,4 +1,4 @@
-FlatCAM Plus (c) 2019 - by Marius Stanciu
+FlatCAM Plus (c) 2026 - by Sadri ERCAN
 
 Based on FlatCAM: 
 2D Computer-Aided PCB Manufacturing by (c) 2014-2018 Juan Pablo Caram
@@ -17,7 +17,7 @@ https://www.youtube.com/playlist?list=PLVvP2SYRpx-AQgNlfoxw93tXUXon7G94_
 
 You can contact me on my email address found in the app in:
 
-Menu -> Help -> About FlatCAM Plus -> Programmers -> Marius Stanciu
+Menu -> Help -> About FlatCAM Plus -> Programmers -> Sadri ERCAN
 
 
 ## Running from Sources (any operating system)
