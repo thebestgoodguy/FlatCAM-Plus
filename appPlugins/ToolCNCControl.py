@@ -506,7 +506,7 @@ class CNCControlUI:
         self.spindle_speed_entry.setMaximumWidth(100)
         spin_lay.addWidget(FCLabel(_("RPM:")), 0, 0)
         spin_lay.addWidget(self.spindle_speed_entry, 0, 1)
-        spin_lay.addStretch(0, 2) # Prevent vertical stretch
+        spin_lay.setRowStretch(2, 1)
         self.spindle_on = FCButton(_("M3 ON")); self.spindle_off = FCButton(_("M5 OFF"))
         spin_lay.addWidget(self.spindle_on, 1, 0); spin_lay.addWidget(self.spindle_off, 1, 1)
 
