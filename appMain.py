@@ -1713,6 +1713,10 @@ class App(QtCore.QObject):
         self.levelling_tool.install(icon=QtGui.QIcon(self.resource_location + '/level32.png'),
                                     pos=self.ui.menuoptions_experimental, separator=True)
 
+        self.cnc_control_tool = ToolCNCControl(self)
+        self.cnc_control_tool.install(icon=QtGui.QIcon(self.resource_location + '/cnc32.png'),
+                                      pos=self.ui.menu_plugins, separator=True)
+
         self.copper_thieving_tool = ToolCopperThieving(self)
         self.copper_thieving_tool.install(icon=QtGui.QIcon(self.resource_location + '/copperfill32.png'),
                                           pos=self.ui.menu_plugins)
@@ -1786,6 +1790,7 @@ class App(QtCore.QObject):
             self.drilling_tool,
             self.milling_tool,
             self.levelling_tool,
+            self.cnc_control_tool,
 
             self.optimal_tool,
             self.transform_tool,

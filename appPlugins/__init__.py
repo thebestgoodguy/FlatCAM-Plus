@@ -25,6 +25,8 @@ from appPlugins.ToolFollow import ToolFollow
 from appPlugins.ToolDrilling import ToolDrilling
 from appPlugins.ToolMilling import ToolMilling
 from appPlugins.ToolLevelling import ToolLevelling
+from appPlugins.ToolCNCControl import ToolCNCControl
+
 
 from appPlugins.ToolOptimal import ToolOptimal
 
