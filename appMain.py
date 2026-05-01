@@ -7279,7 +7279,7 @@ class App(QtCore.QObject):
             str(data["name"]),
             str(data["message"])
         )
-        self.message.emit(title, msg, "info")
+        # self.message.emit(title, msg, "info")
 
     def on_plotcanvas_setup(self):
         """
