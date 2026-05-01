@@ -279,7 +279,8 @@ class CNCControlUI:
         # DRO Card
         dro_card = self.create_card(_("POSITION"))
         left_col.addWidget(dro_card)
-        dro_lay = GLay(dro_card.layout())
+        dro_lay = GLay()
+        dro_card.layout().addLayout(dro_lay)
         
         def add_dro(axis, r):
             l = FCLabel(axis, bold=True, size=12); l.setStyleSheet(f"color: {self.primary};")
