@@ -1,0 +1,305 @@
+// Copyright (c) 2021 -  Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
+#include "Uart.h"
+#include "Configuration/GenericFactory.h"
+#include <Driver/fluidnc_uart.h>
+
+std::string encodeUartMode(UartData wordLength, UartParity parity, UartStop stopBits) {
+    std::string s;
+    s += std::to_string(int(wordLength) - int(UartData::Bits5) + 5);
+    switch (parity) {
+        case UartParity::Even:
+            s += 'E';
+            break;
+        case UartParity::Odd:
+            s += 'O';
+            break;
+        case UartParity::None:
+            s += 'N';
+            break;
+    }
+    switch (stopBits) {
+        case UartStop::Bits1:
+            s += '1';
+            break;
+        case UartStop::Bits1_5:
+            s += "1.5";
+            break;
+        case UartStop::Bits2:
+            s += '2';
+            break;
+    }
+    return s;
+}
+
+const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParity& parity, UartStop& stopBits) {
+    str = string_util::trim(str);
+    if (str.length() == 5 || str.length() == 3) {
+        int32_t wordLenInt;
+        if (!string_util::from_decimal(str.substr(0, 1), wordLenInt)) {
+            return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+        } else if (wordLenInt < 5 || wordLenInt > 8) {
+            return "Number of data bits for uart is out of range. Expected format like [8N1].";
+        }
+        wordLength = UartData(int(UartData::Bits5) + (wordLenInt - 5));
+
+        switch (str[1]) {
+            case 'N':
+            case 'n':
+                parity = UartParity::None;
+                break;
+            case 'O':
+            case 'o':
+                parity = UartParity::Odd;
+                break;
+            case 'E':
+            case 'e':
+                parity = UartParity::Even;
+                break;
+            default:
+                return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+                break;  // Omits compiler warning. Never hit.
+        }
+
+        auto stop = str.substr(2, str.length() - 2);
+        if (stop == "1") {
+            stopBits = UartStop::Bits1;
+        } else if (stop == "1.5") {
+            stopBits = UartStop::Bits1_5;
+        } else if (stop == "2") {
+            stopBits = UartStop::Bits2;
+        } else {
+            return "Uart stopbits can only be 1, 1.5 or 2. Syntax is [8N1]";
+        }
+
+    } else {
+        return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+    }
+    return "";
+}
+
+Uart::Uart(uint32_t uart_num) : _uart_num(uart_num), _name("uart") {
+    _name += std::to_string(uart_num);
+}
+
+Uart::Uart(const char* name) : _uart_num(-1), _name(name) {}
+
+Uart::~Uart() {
+    delete _factory_inst;
+}
+
+void Uart::changeMode(uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {
+    uart_mode(_uart_num, baud, dataBits, parity, stopBits);
+}
+void Uart::restoreMode() {
+    changeMode(_baud, _dataBits, _parity, _stopBits);
+}
+
+void Uart::enterPassthrough() {
+    changeMode(_passthrough_baud, _passthrough_databits, _passthrough_parity, _passthrough_stopbits);
+}
+
+void Uart::exitPassthrough() {
+    restoreMode();
+    if (_sw_flowcontrol_enabled) {
+        setSwFlowControl(_sw_flowcontrol_enabled, _xon_threshold, _xoff_threshold);
+    }
+}
+
+// This version is used for the initial console UART where we do not want to change the pins
+void Uart::begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity) {
+    if (_factory_inst) {
+        _factory_inst->begin(baud, dataBits, stopBits, parity);
+        return;
+    }
+    //    uart_driver_delete(_uart_num);
+    _configured = false;
+    changeMode(baud, dataBits, parity, stopBits);
+
+    uart_init(_uart_num);
+    _configured = true;
+}
+
+// This version is used when we have a config section with all the parameters
+void Uart::begin() {
+    if (_factory_inst) {
+        _factory_inst->begin();
+        _configured = true;
+        return;
+    }
+    auto txd = _txd_pin.undefined() ? -1 : _txd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
+    auto rxd = _rxd_pin.undefined() ? -1 : _rxd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Input);
+    auto rts = _rts_pin.undefined() ? -1 : _rts_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
+    auto cts = _cts_pin.undefined() ? -1 : _cts_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Input);
+
+    if (_txd_pin.undefined() && _rxd_pin.undefined()) {
+        _configured = false;
+        log_config_error("UART:" << _uart_num << " both TXD and RXD pins are undefined");
+        return;
+    }
+    if (setPins(txd, rxd, rts, cts)) {
+        _configured = false;
+        log_config_error("UART:" << _uart_num << " failed to configure pins");
+        return;
+    }
+
+    begin(_baud, _dataBits, _stopBits, _parity);
+    _configured = true;
+    config_message("UART", std::to_string(_uart_num).c_str());
+}
+
+int Uart::read() {
+    if (_factory_inst) {
+        return _factory_inst->read();
+    }
+    if (_pushback != -1) {
+        int ret   = _pushback;
+        _pushback = -1;
+        return ret;
+    }
+    uint8_t c;
+    int     res = uart_read(_uart_num, &c, 1, 0);
+    return res == 1 ? c : -1;
+}
+
+size_t Uart::write(uint8_t c) {
+    if (_factory_inst) {
+        return _factory_inst->write(c);
+    }
+    // Use Uart::write(buf, len) instead of uart_write_bytes() for _addCR
+    return write(&c, 1);
+}
+
+size_t Uart::write(const uint8_t* buffer, size_t length) {
+    if (_factory_inst) {
+        return _factory_inst->write(buffer, length);
+    }
+    return uart_write(_uart_num, buffer, length);
+}
+
+// size_t Uart::write(const char* text) {
+//    return uart_write_bytes(_uart_num, text, strlen(text));
+// }
+
+size_t Uart::timedReadBytes(char* buffer, size_t len, TickType_t timeout) {
+    if (_factory_inst) {
+        return _factory_inst->timedReadBytes(buffer, len, timeout);
+    }
+    int res = uart_read(_uart_num, (uint8_t*)buffer, len, timeout);
+    // If res < 0, no bytes were read
+    return res < 0 ? 0 : res;
+}
+
+void Uart::forceXon() {
+    uart_xon(_uart_num);
+}
+
+void Uart::forceXoff() {
+    uart_xoff(_uart_num);
+}
+
+void Uart::setSwFlowControl(bool on, uint32_t xon_threshold, uint32_t xoff_threshold) {
+    if (_factory_inst) {
+        _factory_inst->setSwFlowControl(on, xon_threshold, xoff_threshold);
+        return;
+    }
+    _sw_flowcontrol_enabled = on;
+    _xon_threshold          = xon_threshold;
+    _xoff_threshold         = xoff_threshold;
+    uart_sw_flow_control(_uart_num, on, xon_threshold, xoff_threshold);
+}
+void Uart::getSwFlowControl(bool& enabled, uint32_t& xon_threshold, uint32_t& xoff_threshold) {
+    enabled        = _sw_flowcontrol_enabled;
+    xon_threshold  = _xon_threshold;
+    xoff_threshold = _xoff_threshold;
+}
+bool Uart::setHalfDuplex() {
+    return uart_half_duplex(_uart_num);
+}
+bool Uart::setPins(pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin, pinnum_t cts_pin) {
+    return uart_pins(_uart_num, tx_pin, rx_pin, rts_pin, cts_pin);
+}
+bool Uart::flushTxTimed(TickType_t ticks) {
+    return !uart_wait_output(_uart_num, ticks);
+}
+
+void Uart::config_message(const char* prefix, const char* usage) {
+    if (_configured) {
+        log_info(prefix << usage << " Tx:" << _txd_pin.name() << " Rx:" << _rxd_pin.name() << " RTS:" << _rts_pin.name()
+                        << " Baud:" << _baud);
+    }
+}
+
+int Uart::rx_buffer_available(void) {
+    if (_factory_inst) {
+        return _factory_inst->rx_buffer_available();
+    }
+    return uart_bufavail(_uart_num);
+}
+
+int Uart::peek() {
+    if (_factory_inst) {
+        return _factory_inst->peek();
+    }
+    if (_pushback != -1) {
+        return _pushback;
+    }
+    int ch = read();
+    if (ch == -1) {
+        return -1;
+    }
+    _pushback = ch;
+    return ch;
+}
+
+int Uart::available() {
+    if (_factory_inst) {
+        return _factory_inst->available();
+    }
+    return uart_buflen(_uart_num) + (_pushback != -1);
+}
+
+void Uart::flushRx() {
+    if (_factory_inst) {
+        _factory_inst->flushRx();
+        return;
+    }
+    _pushback = -1;
+    uart_discard_input(_uart_num);
+}
+
+void Uart::registerInputPin(pinnum_t pinnum, InputPin* pin) {
+    if (_factory_inst) {
+        _factory_inst->registerInputPin(pinnum, pin);
+        return;
+    }
+    uart_register_input_pin(_uart_num, pinnum, pin);
+}
+
+void Uart::validate() {
+    if (_factory_inst) {
+        _factory_inst->validate();
+        return;
+    }
+}
+
+void Uart::group(Configuration::HandlerBase& handler) {
+    // Factory pattern: check for registered subsections (e.g. usb_host:)
+    // This mirrors how Motor::group() calls MotorFactory::factory()
+    UartFactory::factory(handler, _factory_inst);
+
+    if (_factory_inst) {
+        return;
+    }
+
+    handler.item("txd_pin", _txd_pin);
+    handler.item("rxd_pin", _rxd_pin);
+    handler.item("rts_pin", _rts_pin);
+    handler.item("cts_pin", _cts_pin);
+
+    handler.item("baud", _baud, 2400, 10000000);
+    handler.item("mode", _dataBits, _parity, _stopBits);
+    handler.item("passthrough_baud", _passthrough_baud, 0, 10000000);  // 0 means not configured
+    handler.item("passthrough_mode", _passthrough_databits, _passthrough_parity, _passthrough_stopbits);
+}

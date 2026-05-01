@@ -90,10 +90,24 @@ class ToolCNCControl(AppTool):
         self.ui.home_btn.clicked.connect(lambda: self.send_command("$H"))
         self.ui.unlock_btn.clicked.connect(lambda: self.send_command("$X"))
         
+        # Position Zeroing
         self.ui.zero_x.clicked.connect(lambda: self.send_command("G10 L20 P1 X0"))
         self.ui.zero_y.clicked.connect(lambda: self.send_command("G10 L20 P1 Y0"))
         self.ui.zero_z.clicked.connect(lambda: self.send_command("G10 L20 P1 Z0"))
         self.ui.zero_all.clicked.connect(lambda: self.send_command("G10 L20 P1 X0 Y0 Z0"))
+
+        # FluidNC Features
+        self.ui.cfg_dump.clicked.connect(lambda: self.send_command("$Config/Dump"))
+        self.ui.sd_list.clicked.connect(lambda: self.send_command("$SD/List"))
+        self.ui.info_btn.clicked.connect(lambda: self.send_command("$I"))
+
+        # Overrides
+        self.ui.feed_plus.clicked.connect(lambda: self.send_raw(b'\x91'))
+        self.ui.feed_minus.clicked.connect(lambda: self.send_raw(b'\x92'))
+        self.ui.feed_reset.clicked.connect(lambda: self.send_raw(b'\x90'))
+        self.ui.spindle_plus.clicked.connect(lambda: self.send_raw(b'\x9a'))
+        self.ui.spindle_minus.clicked.connect(lambda: self.send_raw(b'\x9b'))
+        self.ui.spindle_reset.clicked.connect(lambda: self.send_raw(b'\x99'))
 
         self.ui.play_btn.clicked.connect(self.on_stream_start)
         self.ui.pause_btn.clicked.connect(self.on_stream_pause)
@@ -129,6 +143,7 @@ class ToolCNCControl(AppTool):
                 self.stop_thread.clear()
                 self.receiver_thread = threading.Thread(target=self.receive_loop, daemon=True)
                 self.receiver_thread.start()
+                self.send_command("$I") # Get FluidNC version info
             except Exception as e: log.error(f"Conn err: {e}")
         else: self.disconnect()
 
@@ -143,6 +158,9 @@ class ToolCNCControl(AppTool):
 
     def send_command(self, cmd):
         if self.ser: self.ser.write((cmd + "\n").encode()); self.append_console_sig.emit(cmd, "tx")
+
+    def send_raw(self, byte_cmd):
+        if self.ser: self.ser.write(byte_cmd)
 
     def send_jog(self, axis, dir):
         step = float(self.ui.step_radio.get_value())
@@ -160,7 +178,9 @@ class ToolCNCControl(AppTool):
                 try:
                     line = self.ser.readline().decode().strip()
                     if line == "ok": self.ok_received.set()
-                    elif line: self.append_console_sig.emit(line, "rx"); self.parse_status(line)
+                    elif line: 
+                        self.append_console_sig.emit(line, "rx")
+                        self.parse_status(line)
                 except: break
             if time.time() - self.last_status_query > self.status_interval:
                 self.send_command("?"); self.last_status_query = time.time()
@@ -213,7 +233,7 @@ class CNCControlUI:
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Style constants
+        # Style constants (AxioCNC Theme)
         self.bg_dark = "#0a0a0a"
         self.bg_panel = "#141414"
         self.bg_input = "#1e1e1e"
@@ -235,11 +255,10 @@ class CNCControlUI:
         
         self.state_indicator = QtWidgets.QFrame(); self.state_indicator.setFixedSize(10, 10); self.state_indicator.setStyleSheet("background-color: #555; border-radius: 5px;")
         self.state_label = FCLabel("DISCONNECTED"); self.state_label.setStyleSheet("font-weight: bold; color: white; font-size: 10pt;")
-        h_lay.addWidget(FCLabel(_("Machine:"), size=9, color="#777"))
         h_lay.addWidget(self.state_indicator); h_lay.addWidget(self.state_label)
         
         h_lay.addSpacing(25)
-        self.com_port = FCComboBox(); self.com_port.setMinimumWidth(100); self.com_port.setStyleSheet(f"background: {self.bg_input}; border: 1px solid #333;")
+        self.com_port = FCComboBox(); self.com_port.setMinimumWidth(120); self.com_port.setStyleSheet(f"background: {self.bg_input}; border: 1px solid #333;")
         self.com_refresh = RotatedToolButton(); self.com_refresh.setIcon(QtGui.QIcon(self.app.resource_location + '/reload32.png'))
         self.connect_btn = AxioStyleButton(_("Connect"), self.accent, "#ff8a65", "white")
         h_lay.addWidget(self.com_port); h_lay.addWidget(self.com_refresh); h_lay.addWidget(self.connect_btn)
@@ -255,26 +274,22 @@ class CNCControlUI:
         h_lay.addWidget(self.reset_btn); h_lay.addWidget(self.estop_btn)
         self.main_lay.addWidget(header)
 
-        # --- MAIN AREA ---
+        # --- MAIN CONTENT ---
         content = QtWidgets.QHBoxLayout()
         self.main_lay.addLayout(content)
 
-        # LEFT SIDEBAR (Fixed Width)
+        # SIDEBAR (LEFT)
         sidebar = QtWidgets.QVBoxLayout()
         sidebar.setSpacing(15)
-        sidebar_widget = QtWidgets.QWidget()
-        sidebar_widget.setFixedWidth(300)
-        sidebar_widget.setLayout(sidebar)
+        sidebar_widget = QtWidgets.QWidget(); sidebar_widget.setFixedWidth(320); sidebar_widget.setLayout(sidebar)
         content.addWidget(sidebar_widget)
 
-        # Position Panel
-        pos_frame = QtWidgets.QFrame()
-        pos_frame.setStyleSheet(f"background: {self.bg_panel}; border: 1px solid #222; border-radius: 6px;")
+        # Position (DRO) Panel
+        pos_frame = QtWidgets.QFrame(); pos_frame.setStyleSheet(f"background: {self.bg_panel}; border: 1px solid #222; border-radius: 6px;")
         sidebar.addWidget(pos_frame)
         pos_lay = QtWidgets.QVBoxLayout(pos_frame)
         pos_lay.addWidget(FCLabel(_("POSITION"), color=self.accent, bold=True, size=9))
         
-        # Position Grid
         pos_grid = GLay()
         def add_pos_grid(axis, color, r):
             l = FCLabel(axis); l.setFixedSize(20, 20); l.setStyleSheet(f"background: {color}; color: white; border-radius: 3px; font-weight: bold;")
@@ -290,11 +305,11 @@ class CNCControlUI:
         pos_lay.addLayout(pos_grid)
         
         btn_row = QtWidgets.QHBoxLayout()
-        self.zero_all = AxioStyleButton(_("Zero All"), "#252525", "#333"); self.home_btn = AxioStyleButton(_("Home"), "#252525", "#333")
-        btn_row.addWidget(self.zero_all); btn_row.addWidget(self.home_btn)
+        self.zero_all = AxioStyleButton(_("Zero All"), "#252525", "#333"); self.home_btn = AxioStyleButton(_("Home"), "#252525", "#333"); self.unlock_btn = AxioStyleButton(_("Unlock"), "#252525", "#333")
+        btn_row.addWidget(self.zero_all); btn_row.addWidget(self.home_btn); btn_row.addWidget(self.unlock_btn)
         pos_lay.addLayout(btn_row)
 
-        # Jog Panel
+        # Jog Control Panel
         jog_frame = QtWidgets.QFrame(); jog_frame.setStyleSheet(pos_frame.styleSheet())
         sidebar.addWidget(jog_frame)
         jog_lay = QtWidgets.QVBoxLayout(jog_frame)
@@ -303,65 +318,89 @@ class CNCControlUI:
         self.step_radio = RadioSet([{"label": "0.1", "value": "0.1"}, {"label": "1", "value": "1"}, {"label": "10", "value": "10"}], orientation='horizontal', compact=True)
         jog_lay.addWidget(self.step_radio)
         
-        jog_grid = QtWidgets.QGridLayout()
-        jog_grid.setSpacing(5)
+        jog_grid = QtWidgets.QGridLayout(); jog_grid.setSpacing(5)
         self.jog_up = AxioStyleButton("▲"); self.jog_down = AxioStyleButton("▼"); self.jog_left = AxioStyleButton("◀"); self.jog_right = AxioStyleButton("▶")
         self.jog_z_up = AxioStyleButton("Z+"); self.jog_z_down = AxioStyleButton("Z-")
-        for b in [self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down]: b.setFixedSize(36, 36)
+        for b in [self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down]: b.setFixedSize(40, 40)
         jog_grid.addWidget(self.jog_up, 0, 1); jog_grid.addWidget(self.jog_left, 1, 0); jog_grid.addWidget(self.jog_right, 1, 2); jog_grid.addWidget(self.jog_down, 2, 1)
         jog_grid.addWidget(self.jog_z_up, 0, 3); jog_grid.addWidget(self.jog_z_down, 2, 3)
         jog_lay.addLayout(jog_grid)
-        
-        self.unlock_btn = AxioStyleButton(_("Unlock Machine"), "#252525", "#333")
-        jog_lay.addWidget(self.unlock_btn)
 
-        # CENTER AREA (3D VIEW & CONSOLE)
+        # FluidNC Features Panel
+        feat_frame = QtWidgets.QFrame(); feat_frame.setStyleSheet(pos_frame.styleSheet())
+        sidebar.addWidget(feat_frame)
+        feat_lay = QtWidgets.QVBoxLayout(feat_frame)
+        feat_lay.addWidget(FCLabel(_("FLUIDNC TOOLS"), color=self.accent, bold=True, size=9))
+        
+        fl_btns = QtWidgets.QGridLayout()
+        self.cfg_dump = AxioStyleButton("CFG Dump", "#252525", "#333"); self.sd_list = AxioStyleButton("SD List", "#252525", "#333"); self.info_btn = AxioStyleButton("Sys Info", "#252525", "#333")
+        fl_btns.addWidget(self.cfg_dump, 0, 0); fl_btns.addWidget(self.sd_list, 0, 1); fl_btns.addWidget(self.info_btn, 1, 0)
+        feat_lay.addLayout(fl_btns)
+
+        # Overrides Panel
+        ovr_frame = QtWidgets.QFrame(); ovr_frame.setStyleSheet(pos_frame.styleSheet())
+        sidebar.addWidget(ovr_frame)
+        ovr_lay = QtWidgets.QVBoxLayout(ovr_frame)
+        ovr_lay.addWidget(FCLabel(_("OVERRIDES"), color=self.accent, bold=True, size=9))
+        
+        ovr_grid = QtWidgets.QGridLayout()
+        self.feed_plus = AxioStyleButton("F+10%"); self.feed_minus = AxioStyleButton("F-10%"); self.feed_reset = AxioStyleButton("F 100%")
+        self.spindle_plus = AxioStyleButton("S+10%"); self.spindle_minus = AxioStyleButton("S-10%"); self.spindle_reset = AxioStyleButton("S 100%")
+        ovr_grid.addWidget(self.feed_minus, 0, 0); ovr_grid.addWidget(self.feed_reset, 0, 1); ovr_grid.addWidget(self.feed_plus, 0, 2)
+        ovr_grid.addWidget(self.spindle_minus, 1, 0); ovr_grid.addWidget(self.spindle_reset, 1, 1); ovr_grid.addWidget(self.spindle_plus, 1, 2)
+        ovr_lay.addLayout(ovr_grid)
+
+        # CENTER PANEL (Terminal & Console)
         center_panel = QtWidgets.QVBoxLayout()
         content.addLayout(center_panel, 1)
         
-        # 3D Placeholder (Grid)
-        view_frame = QtWidgets.QFrame()
-        view_frame.setStyleSheet(f"background: #050505; border: 1px solid #222; border-radius: 8px;")
-        center_panel.addWidget(view_frame, 3)
-        view_lay = QtWidgets.QVBoxLayout(view_frame)
-        view_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        grid_lbl = FCLabel("3D VIEW AREA", size=14, color="#333", bold=True)
-        view_lay.addWidget(grid_lbl)
+        tabs = QtWidgets.QTabWidget()
+        tabs.setStyleSheet(f"QTabWidget::pane {{ border: 1px solid #222; background: {self.bg_panel}; border-radius: 8px; }} QTabBar::tab {{ background: #111; padding: 10px 25px; margin-right: 2px; }} QTabBar::tab:selected {{ background: {self.bg_panel}; color: {self.accent}; font-weight: bold; }}")
+        center_panel.addWidget(tabs)
         
-        # Console
-        console_frame = QtWidgets.QFrame()
-        console_frame.setStyleSheet(f"background: {self.bg_panel}; border: 1px solid #222; border-radius: 6px;")
-        center_panel.addWidget(console_frame, 1)
-        con_lay = QtWidgets.QVBoxLayout(console_frame)
-        con_lay.setContentsMargins(5, 5, 5, 5)
-        self.console = FCTextArea(); self.console.setReadOnly(True); self.console.setStyleSheet("background: #000; color: #777; font-family: 'Consolas'; border: none;")
-        con_lay.addWidget(self.console)
-        self.command_entry = FCEntry(); self.command_entry.setPlaceholderText(_("G-Code command...")); self.command_entry.setStyleSheet("background: #0a0a0a; border: 1px solid #333; color: white;")
-        con_lay.addWidget(self.command_entry)
-
-        # Streaming Status
-        stream_bar = QtWidgets.QFrame(); stream_bar.setFixedHeight(40); stream_bar.setStyleSheet(f"background: {self.bg_panel}; border-radius: 6px;")
+        # Terminal Tab
+        terminal_page = QtWidgets.QWidget(); term_lay = QtWidgets.QVBoxLayout(terminal_page)
+        self.console = FCTextArea(); self.console.setReadOnly(True); self.console.setStyleSheet("background: #000; color: #888; font-family: 'Consolas'; font-size: 10pt; border: none;")
+        term_lay.addWidget(self.console)
+        
+        cmd_bar = QtWidgets.QHBoxLayout()
+        self.command_entry = FCEntry(); self.command_entry.setPlaceholderText(_("Enter FluidNC / G-Code command...")); self.command_entry.setStyleSheet("background: #0d0d0d; border: 1px solid #333; color: #ddd; padding: 6px;")
+        cmd_bar.addWidget(self.command_entry)
+        term_lay.addLayout(cmd_bar)
+        tabs.addTab(terminal_page, _("TERMINAL"))
+        
+        # Streaming Status Bar
+        stream_bar = QtWidgets.QFrame(); stream_bar.setFixedHeight(50); stream_bar.setStyleSheet(f"background: {self.bg_panel}; border: 1px solid #222; border-radius: 6px;")
         sb_lay = QtWidgets.QHBoxLayout(stream_bar)
-        self.object_combo = FCComboBox(); self.progress = QtWidgets.QProgressBar(); self.progress.setFixedHeight(4)
-        sb_lay.addWidget(FCLabel(_("Job:"), size=8)); sb_lay.addWidget(self.object_combo); sb_lay.addWidget(self.progress)
+        self.object_combo = FCComboBox(); self.progress = QtWidgets.QProgressBar(); self.progress.setFixedHeight(4); self.progress.setStyleSheet(f"QProgressBar {{ background: #000; border-radius: 2px; border: none; }} QProgressBar::chunk {{ background: {self.accent}; }}")
+        sb_lay.addWidget(FCLabel(_("Job:"), size=8, color="#666")); sb_lay.addWidget(self.object_combo); sb_lay.addWidget(self.progress)
         center_panel.addWidget(stream_bar)
 
-        # FOOTER (Tool Library Cards)
+        # FOOTER (Tool Cards)
         footer = QtWidgets.QHBoxLayout()
         self.main_lay.addLayout(footer)
         for i in range(4):
-            card = QtWidgets.QFrame(); card.setFixedHeight(80); card.setStyleSheet("background: #111; border: 1px solid #222; border-radius: 6px;")
+            card = QtWidgets.QFrame(); card.setFixedHeight(90); card.setStyleSheet("background: #111; border: 1px solid #222; border-radius: 6px;")
             cl = QtWidgets.QVBoxLayout(card)
-            cl.addWidget(FCLabel(f"T{i+1}", color=self.accent, bold=True))
-            cl.addWidget(FCLabel(_("Not Configured"), size=8, color="#555"))
+            cl.addWidget(FCLabel(f"T{i+1}", color=self.accent, bold=True, size=10))
+            cl.addWidget(FCLabel(_("FluidNC Tool"), size=8, color="#555"))
             footer.addWidget(card)
 
     def set_connected(self, connected):
         self.connect_btn.setText(_("Disconnect") if connected else _("Connect"))
-        for w in [self.play_btn, self.pause_btn, self.stop_btn, self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down, self.zero_x, self.zero_y, self.zero_z, self.zero_all, self.home_btn, self.unlock_btn]:
+        for w in [self.play_btn, self.pause_btn, self.stop_btn, self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down, self.zero_x, self.zero_y, self.zero_z, self.zero_all, self.home_btn, self.unlock_btn, self.cfg_dump, self.sd_list, self.info_btn, self.feed_plus, self.feed_minus, self.feed_reset, self.spindle_plus, self.spindle_minus, self.spindle_reset]:
             w.setEnabled(connected)
 
     def append_console(self, text, type):
-        color = {"tx": self.accent, "rx": "#4caf50", "error": "#f44336"}.get(type, "#666")
-        self.console.appendHtml(f'<span style="color: {color};">{"> " if type=="tx" else "< "}{text}</span>')
+        # FluidNC Style Colorization
+        color = {"tx": self.accent, "rx": "#bbb", "error": "#f44336"}.get(type, "#888")
+        prefix = '<span style="color: #555;">&gt;</span> ' if type=="tx" else '<span style="color: #555;">&lt;</span> '
+        
+        # Parse FluidNC Messages
+        if "MSG:ERR" in text: color = "#f44336"
+        elif "MSG:INFO" in text: color = "#4caf50"
+        elif "MSG:WARN" in text: color = "#ff9800"
+        elif "MSG:DBG" in text: color = "#9c27b0"
+        
+        self.console.appendHtml(f'{prefix}<span style="color: {color};">{text}</span>')
         self.console.moveCursor(QtGui.QTextCursor.MoveOperation.End)

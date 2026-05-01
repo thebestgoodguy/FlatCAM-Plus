@@ -1,0 +1,49 @@
+// Copyright (c) 2021 -	Stefan de Bruijn
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
+#pragma once
+
+#include "HandlerBase.h"
+#include "Configurable.h"
+
+namespace Configuration {
+    class Completer : public Configuration::HandlerBase {
+    private:
+        std::string  _key;
+        uint32_t     _reqMatch;
+        std::string& _matchedStr;
+        std::string  _currentPath;
+
+        void addCandidate(std::string fullName);
+
+    protected:
+        void enterSection(const char* name, Configuration::Configurable* value) override;
+        bool matchesUninitialized(const char* name) override { return false; }
+
+    public:
+        Completer(const std::string_view key, uint32_t requestedMatch, std::string& matchedStr);
+
+        uint32_t _numMatches;
+
+        void item(const char* name);
+        void item(const char* name, bool& value) override { item(name); }
+        void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override { item(name); }
+        void item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) override { item(name); }
+        void item(const char* name, float& value, const float minValue, const float maxValue) override { item(name); }
+        void item(const char* name, std::vector<speedEntry>& value) override { item(name); }
+        void item(const char* name, std::vector<float>& value) override { item(name); }
+        void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override { item(name); }
+        void item(const char* name, std::string& value, const int minLength, const int maxLength) override { item(name); }
+        void item(const char* name, EventPin& value) override { item(name); }
+        void item(const char* name, InputPin& value) override { item(name); }
+        void item(const char* name, Pin& value) override { item(name); }
+        void item(const char* name, Macro& value) override { item(name); }
+        void item(const char* name, IPAddress& value) override { item(name); }
+        void item(const char* name, uint32_t& value, const EnumItem* e) override { item(name); }
+        void item(const char* name, axis_t& value) override { item(name); }
+
+        HandlerType handlerType() override { return HandlerType::Completer; }
+
+        virtual ~Completer();
+    };
+}
