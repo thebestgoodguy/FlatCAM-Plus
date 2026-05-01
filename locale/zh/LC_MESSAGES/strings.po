@@ -13380,8 +13380,8 @@ msgid "FlatCAM Author"
 msgstr "FlatCAM作者"
 
 #: appMain.py:3625
-msgid "FlatCAM Evo Author/Maintainer"
-msgstr "FlatCAM Evo 作者/维护者"
+msgid "FlatCAM Plus Author/Maintainer"
+msgstr "FlatCAM Plus 作者/维护者"
 
 #: appMain.py:3697
 msgid "Language"
@@ -13862,8 +13862,8 @@ msgid "Clear Recent files"
 msgstr "清除最近的文件"
 
 #: appMain.py:8653
-msgid "FlatCAM Evo"
-msgstr "FlatCAM Evo"
+msgid "FlatCAM Plus"
+msgstr "FlatCAM Plus"
 
 #: appMain.py:8657
 msgid "Release date"
@@ -18818,8 +18818,8 @@ msgid "...processing..."
 msgstr "…加工..."
 
 #: appPlugins/ToolShell.py:323
-msgid "FlatCAM Evo Shell"
-msgstr "FlatCAM Evo 控制台"
+msgid "FlatCAM Plus Shell"
+msgstr "FlatCAM Plus 控制台"
 
 #: appPlugins/ToolSolderPaste.py:110 appPlugins/ToolSolderPaste.py:1229
 #, fuzzy

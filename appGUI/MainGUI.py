@@ -1,4 +1,4 @@
-# ##########################################################
+﻿# ##########################################################
 # FlatCAM: 2D Post-processing for Manufacturing            #
 # http://flatcam.org                                       #
 # Author: Juan Pablo Caram (c)                             #
@@ -649,9 +649,6 @@ class MainGUI(QtWidgets.QMainWindow):
         # ########################## Help # ######################################
         # ########################################################################
         self.menuhelp = self.menu.addMenu(_('Help'))
-        self.menuhelp_manual = self.menuhelp.addAction(
-            QtGui.QIcon(self.app.resource_location + '/globe16.png'),
-            '%s\t%s' % (_('Obsolete Online Help'), _('F1')))
 
         self.menuhelp_bookmarks = self.menuhelp.addMenu(
             QtGui.QIcon(self.app.resource_location + '/bookmarks16.png'), _('Bookmarks'))
@@ -677,19 +674,6 @@ class MainGUI(QtWidgets.QMainWindow):
         self.menuhelp_shortcut_list = self.menuhelp.addAction(
             QtGui.QIcon(self.app.resource_location + '/shortcuts24.png'),
             '%s\t%s' % (_('Shortcuts List'), _('F3')))
-        self.menuhelp_videohelp = self.menuhelp.addAction(
-            QtGui.QIcon(self.app.resource_location + '/youtube32.png'),
-            '%s\t%s' % (_('YouTube Channel'), _('F4')))
-
-        self.menuhelp.addSeparator()
-
-        self.menuhelp_donate = self.menuhelp.addAction(
-            QtGui.QIcon(self.app.resource_location + '/paypal32.png'),
-            '%s\t%s' % (_('Donate'), ''))
-
-        self.menuhelp_readme = self.menuhelp.addAction(
-            QtGui.QIcon(self.app.resource_location + '/warning.png'),
-            '%s\t%s' % (_("How To"), ''))
 
         self.menuhelp_about = self.menuhelp.addAction(
             QtGui.QIcon(self.app.resource_location + '/about32.png'),
@@ -2068,7 +2052,7 @@ class MainGUI(QtWidgets.QMainWindow):
         # ########################################################################
         # ################## RESTORE UI from QSettings #################
         # ########################################################################
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("saved_gui_state"):
             self.restoreState(q_settings.value('saved_gui_state'), 0)
         tb_lock_state = q_settings.value('toolbar_lock', "true")
@@ -2231,13 +2215,13 @@ class MainGUI(QtWidgets.QMainWindow):
         :param name: String that store the project path and project name
         :return: None
         """
-        title = 'FlatCAM Evo %s %s - %s - [%s]    %s' % (
+        title = 'FlatCAM Plus %s %s - %s - [%s]    %s' % (
             self.app.version, ('BETA' if self.app.beta else ''), platform.architecture()[0], self.app.engine, name)
         self.setWindowTitle(title)
 
     def on_toggle_gui(self):
         if self.isHidden():
-            mgui_settings = QSettings("Open Source", "FlatCAM_EVO")
+            mgui_settings = QSettings("Open Source", "FlatCAM_Plus")
             if mgui_settings.contains("maximized_gui"):
                 maximized_ui = mgui_settings.value('maximized_gui', type=bool)
                 if maximized_ui is True:
@@ -2343,7 +2327,7 @@ class MainGUI(QtWidgets.QMainWindow):
         """
         self.app.log.debug("Clearing the settings in QSettings. GUI settings cleared.")
 
-        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
         theme_settings.setValue('theme', 'light')
 
         del theme_settings
@@ -2368,7 +2352,7 @@ class MainGUI(QtWidgets.QMainWindow):
             response = msgbox.clickedButton()
 
         if forced_clear is True or response == bt_yes:
-            q_settings = QSettings("Open Source", "FlatCAM_EVO")
+            q_settings = QSettings("Open Source", "FlatCAM_Plus")
             for key in q_settings.allKeys():
                 q_settings.remove(key)
             # This will write the setting to the platform specific storage.
@@ -2686,7 +2670,7 @@ class MainGUI(QtWidgets.QMainWindow):
         self.snap_magnet.setVisible(False)
         self.editor_exit_btn_ret_action.setVisible(False)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("layout"):
             layout = q_settings.value('layout', type=str)
 
@@ -2754,7 +2738,7 @@ class MainGUI(QtWidgets.QMainWindow):
                 if isinstance(widget, QtWidgets.QToolBar):
                     widget.setMovable(True)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         q_settings.setValue('toolbar_lock', lock)
         # This will write the setting to the platform specific storage.
         del q_settings
@@ -2769,7 +2753,7 @@ class MainGUI(QtWidgets.QMainWindow):
                 if isinstance(widget, QtWidgets.QToolBar):
                     widget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         q_settings.setValue('menu_show_text', show_text)
         # This will write the setting to the platform specific storage.
         del q_settings
@@ -4610,7 +4594,7 @@ class MainGUI(QtWidgets.QMainWindow):
         else:
             g_rect = self.geometry()
 
-            q_settings = QSettings("Open Source", "FlatCAM_EVO")
+            q_settings = QSettings("Open Source", "FlatCAM_Plus")
             q_settings.setValue('saved_gui_state', self.saveState(0))
             q_settings.setValue('toolbar_lock', self.lock_action.isChecked())
             q_settings.setValue('menu_show_text', self.show_text_action.isChecked())

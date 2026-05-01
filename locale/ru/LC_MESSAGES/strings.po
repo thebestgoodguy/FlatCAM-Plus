@@ -14165,12 +14165,12 @@ msgstr "E-mail"
 
 #: appMain.py:3621
 #, fuzzy
-#| msgid "FlatCAM Evo"
+#| msgid "FlatCAM Plus"
 msgid "FlatCAM Author"
-msgstr "FlatCAM Evo"
+msgstr "FlatCAM Plus"
 
 #: appMain.py:3625
-msgid "FlatCAM Evo Author/Maintainer"
+msgid "FlatCAM Plus Author/Maintainer"
 msgstr ""
 
 #: appMain.py:3697
@@ -14675,8 +14675,8 @@ msgid "Clear Recent files"
 msgstr "Очистить список"
 
 #: appMain.py:8653
-msgid "FlatCAM Evo"
-msgstr "FlatCAM Evo"
+msgid "FlatCAM Plus"
+msgstr "FlatCAM Plus"
 
 #: appMain.py:8657
 msgid "Release date"
@@ -20165,7 +20165,7 @@ msgstr "...обработка..."
 #: appPlugins/ToolShell.py:323
 #, fuzzy
 #| msgid "FlatCAM Shell"
-msgid "FlatCAM Evo Shell"
+msgid "FlatCAM Plus Shell"
 msgstr "FlatCAM Shell"
 
 #: appPlugins/ToolSolderPaste.py:110 appPlugins/ToolSolderPaste.py:1229

@@ -73,7 +73,7 @@ if __name__ == '__main__':
     major_v = sys.version_info.major
     minor_v = sys.version_info.minor
 
-    v_msg = "FlatCAM Evo uses PYTHON 3 or later. The version minimum is %s.%s\n"\
+    v_msg = "FlatCAM Plus uses PYTHON 3 or later. The version minimum is %s.%s\n"\
             "Your Python version is: %s.%s" % (MIN_VERSION_MAJOR, MIN_VERSION_MINOR, str(major_v), str(minor_v))
 
     # Supported Python version is >= 3.6
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
 
     # apply style
-    settings = QSettings("Open Source", "FlatCAM_EVO")
+    settings = QSettings("Open Source", "FlatCAM_Plus")
     if settings.contains("style"):
         style_index = settings.value('style', type=str)
         try:

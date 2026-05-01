@@ -1,5 +1,5 @@
 # ##########################################################
-# FlatCAM Evo: 2D Post-processing for Manufacturing        #
+# FlatCAM Plus: 2D Post-processing for Manufacturing        #
 # File Author: Marius Adrian Stanciu (c)                   #
 # Date: 4/28/2020                                          #
 # MIT Licence                                              #

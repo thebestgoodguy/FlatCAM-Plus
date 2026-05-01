@@ -13871,7 +13871,7 @@ msgid "FlatCAM Author"
 msgstr "Autore FlatCAM"
 
 #: appMain.py:3625
-msgid "FlatCAM Evo Author/Maintainer"
+msgid "FlatCAM Plus Author/Maintainer"
 msgstr "Autore/Manutentore FlatCAM Eco"
 
 #: appMain.py:3697
@@ -14365,8 +14365,8 @@ msgid "Clear Recent files"
 msgstr "Azzera lista file recenti"
 
 #: appMain.py:8653
-msgid "FlatCAM Evo"
-msgstr "FlatCAM Evo"
+msgid "FlatCAM Plus"
+msgstr "FlatCAM Plus"
 
 #: appMain.py:8657
 msgid "Release date"
@@ -19606,8 +19606,8 @@ msgid "...processing..."
 msgstr "...elaborazione..."
 
 #: appPlugins/ToolShell.py:323
-msgid "FlatCAM Evo Shell"
-msgstr "Shell FlatCAM Evo"
+msgid "FlatCAM Plus Shell"
+msgstr "Shell FlatCAM Plus"
 
 #: appPlugins/ToolSolderPaste.py:110 appPlugins/ToolSolderPaste.py:1229
 #, fuzzy

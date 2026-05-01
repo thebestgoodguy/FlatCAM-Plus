@@ -4,7 +4,7 @@ Based on FlatCAM:
 2D Computer-Aided PCB Manufacturing by (c) 2014-2016 Juan Pablo Caram
 =================================================
 
-CHANGELOG for FlatCAM Evo beta
+CHANGELOG for FlatCAM Plus beta
 
 =================================================
 
@@ -1825,7 +1825,7 @@ a
 - allow the old projects to be loaded without crashing the app, although the load is incomplete
 - updated the Milling Plugin and all the related parts in the CNCJob Object and in all preprocessors. Now, the parent 'tools' attribute is inherited and also the GCode is stored here
 - made sure that old projects load but without the CNCjob objects which would have crashed the app due different data structures
-- the FlatCAm Evo projects load now in succession, no longer on threads
+- the FlatCAM Plus projects load now in succession, no longer on threads
 
 13.03.2021
 
@@ -1971,7 +1971,7 @@ a
 
 - renamed the Tool menu category to Plugins
 - for all the plugins optimized the plugin name
-- renamed the app to FlatCAM Evo in order to make a difference from FlatCAM app which follows its own path
+- renamed the app to FlatCAM Plus in order to make a difference from FlatCAM app which follows its own path
 - modified the splash image to reflect the new naming of the app
 - modified some of the documents (License, Readme) in the app to reflect the actual reality in 2021
 - made more changes in the names; Tools Toolbar is now Plugin Toolbar

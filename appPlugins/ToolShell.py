@@ -320,9 +320,9 @@ class FCShell(TermWidget):
         app_icon.addFile(self.app.resource_location + '/app32.png', QtCore.QSize(32, 32))
 
         self.setWindowIcon(app_icon)
-        self.setWindowTitle(_("FlatCAM Evo Shell"))
+        self.setWindowTitle(_("FlatCAM Plus Shell"))
         self.resize(*self.app.options["global_shell_shape"])
-        self._append_to_browser('in', "FlatCAM Evo %s - " % version)
+        self._append_to_browser('in', "FlatCAM Plus %s - " % version)
         self.append_output('%s\n\n' % _("Type >help< to get started"))
 
         self.app.ui.shell_dock.setWidget(self)

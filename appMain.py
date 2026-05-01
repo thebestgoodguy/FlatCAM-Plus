@@ -176,10 +176,10 @@ class App(QtCore.QObject):
     # ###############################################################################################################
     # ################################### Version and VERSION DATE ##################################################
     # ###############################################################################################################
-    version = "Unstable"
+    version = "1.0"
     # version = 1.0
-    version_date = "2023/6/31"
-    beta = True
+    version_date = "2026/05/01"
+    beta = False
     engine = '3D'
 
     # current date now
@@ -197,14 +197,13 @@ class App(QtCore.QObject):
     app_url = "http://flatcam.org"
 
     # Manual URL
-    manual_url = "http://flatcam.org/manual/index.html"
-    video_url = "https://www.youtube.com/playlist?list=PLVvP2SYRpx-AQgNlfoxw93tXUXon7G94_"
+    manual_url = "https://github.com/thebestgoodguy/flatcam"
+    video_url = "https://github.com/thebestgoodguy/flatcam"
     gerber_spec_url = "https://www.ucamco.com/files/downloads/file/81/The_Gerber_File_Format_specification." \
                       "pdf?7ac957791daba2cdf4c2c913f67a43da"
     excellon_spec_url = "https://www.ucamco.com/files/downloads/file/305/the_xnc_file_format_specification.pdf"
-    bug_report_url = "https://bitbucket.org/jpcgt/flatcam/issues?status=new&status=open"
-    donate_url = "https://www.paypal.com/cgi-bin/webscr?cmd=_" \
-                 "donations&business=WLTJJ3Q77D98L&currency_code=USD&source=url"
+    bug_report_url = "https://github.com/thebestgoodguy/flatcam/issues"
+    donate_url = "https://github.com/thebestgoodguy/flatcam"
     # this variable will hold the project status
     # if True it will mean that the project was modified and not saved
     should_we_save = False
@@ -669,7 +668,7 @@ class App(QtCore.QObject):
         # ###########################################################################################################
         if self.options["first_run"] is True:
             # on first run clear the previous QSettings, therefore clearing the GUI settings
-            q_settings = QSettings("Open Source", "FlatCAM_EVO")
+            q_settings = QSettings("Open Source", "FlatCAM_Plus")
             for key in q_settings.allKeys():
                 q_settings.remove(key)
             # This will write the setting to the platform specific storage.
@@ -678,7 +677,7 @@ class App(QtCore.QObject):
         # ###########################################################################################################
         # ###################################### Setting the Splash Screen ##########################################
         # ###########################################################################################################
-        splash_settings = QSettings("Open Source", "FlatCAM_EVO")
+        splash_settings = QSettings("Open Source", "FlatCAM_Plus")
         if splash_settings.contains("splash_screen"):
             show_splash = splash_settings.value("splash_screen")
         else:
@@ -791,7 +790,7 @@ class App(QtCore.QObject):
         self.FC_light_blue = '#a5a5ffbf'
         self.FC_dark_blue = '#0000ffbf'
 
-        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
         theme_settings.setValue("appearance", self.options["global_appearance"])
         theme_settings.setValue("theme", self.options["global_theme"])
         theme_settings.setValue("dark_canvas", self.options["global_dark_canvas"])
@@ -1328,7 +1327,7 @@ class App(QtCore.QObject):
                 # finish the splash
                 self.splash.finish(self.ui)
 
-            mgui_settings = QSettings("Open Source", "FlatCAM_EVO")
+            mgui_settings = QSettings("Open Source", "FlatCAM_Plus")
             if mgui_settings.contains("maximized_gui"):
                 maximized_ui = mgui_settings.value('maximized_gui', type=bool)
                 if maximized_ui is True:
@@ -1991,13 +1990,9 @@ class App(QtCore.QObject):
 
     def connect_menuhelp_signals(self):
         self.ui.menuhelp_about.triggered.connect(self.on_about)
-        self.ui.menuhelp_readme.triggered.connect(self.on_howto)
-        self.ui.menuhelp_donate.triggered.connect(lambda: webbrowser.open(self.donate_url))
-        self.ui.menuhelp_manual.triggered.connect(lambda: webbrowser.open(self.manual_url))
         self.ui.menuhelp_report_bug.triggered.connect(lambda: webbrowser.open(self.bug_report_url))
         self.ui.menuhelp_exc_spec.triggered.connect(lambda: webbrowser.open(self.excellon_spec_url))
         self.ui.menuhelp_gerber_spec.triggered.connect(lambda: webbrowser.open(self.gerber_spec_url))
-        self.ui.menuhelp_videohelp.triggered.connect(lambda: webbrowser.open(self.video_url))
         self.ui.menuhelp_shortcut_list.triggered.connect(self.ui.on_shortcut_list)
 
     def connect_project_context_signals(self):
@@ -2162,7 +2157,7 @@ class App(QtCore.QObject):
         else:
             current_layout = self.ui.general_pref_form.general_gui_group.layout_combo.get_value()
 
-        lay_settings = QSettings("Open Source", "FlatCAM_EVO")
+        lay_settings = QSettings("Open Source", "FlatCAM_Plus")
         lay_settings.setValue('layout', current_layout)
 
         # This will write the setting to the platform specific storage.
@@ -2983,17 +2978,15 @@ class App(QtCore.QObject):
                 logo.setPixmap(QtGui.QPixmap(self.app.resource_location + '/app256.png'))
 
                 title = FCLabel(
-                    "<font size=8><B>FlatCAM Evo</B></font><BR>"
+                    "<font size=8><B>FlatCAM Plus</B></font><BR>"
                     "{title}<BR>"
                     "<BR>"
                     "<BR>"
-                    "<a href = \"https://bitbucket.org/jpcgt/flatcam/src/Beta/\"><B>{devel}</B></a><BR>"
-                    "<a href = \"https://bitbucket.org/jpcgt/flatcam/downloads/\"><b>{down}</B></a><BR>"
-                    "<a href = \"https://bitbucket.org/jpcgt/flatcam/issues?status=new&status=open/\">"
+                    "<a href = \"https://github.com/thebestgoodguy/flatcam\"><B>{devel}</B></a><BR>"
+                    "<a href = \"https://github.com/thebestgoodguy/flatcam/issues\">"
                     "<B>{issue}</B></a><BR>".format(
                         title=_("PCB Manufacturing files Viewer/Editor with Plugins"),
-                        devel=_("Development"),
-                        down=_("DOWNLOAD"),
+                        devel=_("GitHub Repository"),
                         issue=_("Issue tracker"))
                 )
                 title.setOpenExternalLinks(True)
@@ -3002,7 +2995,7 @@ class App(QtCore.QObject):
 
                 tab_widget = QtWidgets.QTabWidget()
                 description_label = FCLabel(
-                    "FlatCAM Evo {version} {beta} ({date}) - {arch}<br>"
+                    "FlatCAM Plus {version} {beta} ({date}) - {arch}<br>"
                     "<a href = \"http://flatcam.org/\">http://flatcam.org</a><br>".format(
                         version=version,
                         beta=('BETA' if beta else ''),
@@ -3135,7 +3128,7 @@ class App(QtCore.QObject):
                         'email': ''
                     },
                     {
-                        'name': "Matthieu Berthomé",
+                        'name': "Matthieu BerthomÃ©",
                         'description': '',
                         'email': ''
                     },
@@ -3150,7 +3143,7 @@ class App(QtCore.QObject):
                         'email': ''
                     },
                     {
-                        'name': "Jørn Sandvik Nilsson",
+                        'name': "JÃ¸rn Sandvik Nilsson",
                         'description': '',
                         'email': ''
                     },
@@ -3315,7 +3308,7 @@ class App(QtCore.QObject):
                         'email': ''
                     },
                     {
-                        'name': "Robert Niemöller",
+                        'name': "Robert NiemÃ¶ller",
                         'description': '',
                         'email': ''
                     },
@@ -3402,7 +3395,7 @@ class App(QtCore.QObject):
                     },
                     {
                         'language': 'Chinese Simplified',
-                        'authors': [("余俊霄 (Yu Junxiao)", '')]
+                        'authors': [("ä½™ä¿Šéœ„ (Yu Junxiao)", '')]
                     },
                     {
                         'language': 'French',
@@ -3897,7 +3890,7 @@ class App(QtCore.QObject):
 
         if self.cmd_line_headless != 1:
             # save app state to file
-            stgs = QSettings("Open Source", "FlatCAM_EVO")
+            stgs = QSettings("Open Source", "FlatCAM_Plus")
             stgs.setValue('saved_gui_state', self.ui.saveState())
             stgs.setValue('maximized_gui', self.ui.isMaximized())
             stgs.setValue(
