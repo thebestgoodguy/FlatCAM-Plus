@@ -1,0 +1,32 @@
+name: flatcam
+channels:
+- conda-forge
+dependencies:
+- darkdetect
+- dill
+- ezdxf
+- fontTools
+- freetype-py
+- gdal
+- lxml
+- matplotlib>=3.5.0
+- numpy==1.26.4
+- pikepdf>=2.0
+- pip
+- pre-commit
+- pyopengl
+- pyppeteer
+- pyserial>=3.4
+- qrcode>=6.1
+- rasterio
+- reportlab>=3.5
+- rtree
+- shapely>=2.0
+- simplejson
+- svg.path>=4.0
+- svglib
+- vispy>=0.9.0
+- pip:
+  - ortools>=7.0
+  - pyqt6>=6.1.0
+  - svgtrace
