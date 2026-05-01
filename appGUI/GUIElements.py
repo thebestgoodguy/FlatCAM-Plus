@@ -6147,7 +6147,12 @@ class GLay(QtWidgets.QGridLayout):
         :param parent:
         """
 
-        super().__init__(*args, parent=parent)
+        if parent is not None:
+            super().__init__(parent)
+        elif args:
+            super().__init__(*args)
+        else:
+            super().__init__()
 
         # block signals so there is a single repaint signal fired
         self.blockSignals(True)
