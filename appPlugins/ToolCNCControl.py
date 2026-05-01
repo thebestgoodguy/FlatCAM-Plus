@@ -33,12 +33,12 @@ class FluidStyleButton(FCButton):
         super().__init__(text, parent)
         self.setStyleSheet(f"""
             QPushButton {{
-                background-color: {color}; color: {text_color}; border: 1px solid #2e6da4;
-                border-radius: 4px; padding: 4px 10px; font-weight: bold; font-size: 9pt;
+                background-color: {color}; color: {text_color}; border: 1px solid rgba(0,0,0,0.1);
+                border-radius: 4px; padding: 6px 14px; font-weight: bold; font-size: 9pt;
             }}
-            QPushButton:hover {{ background-color: {hover}; border-color: #204d74; }}
+            QPushButton:hover {{ background-color: {hover}; }}
             QPushButton:pressed {{ background-color: #1b6d85; }}
-            QPushButton:disabled {{ background-color: #eee; color: #999; border-color: #ddd; }}
+            QPushButton:disabled {{ background-color: #f5f5f5; color: #ccc; border: 1px solid #eee; }}
         """)
 
 class ToolCNCControl(AppTool):
@@ -216,53 +216,57 @@ class CNCControlUI:
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Theme (FluidNC / ESP3D)
-        self.bg_main = "#ecf0f1"
+        # Style Constants (FluidNC / ESP3D)
+        self.bg_main = "#f0f2f5"
         self.bg_card = "#ffffff"
         self.primary = "#31b0d5"
-        self.dark_gray = "#2c3e50"
+        self.dark_text = "#4b4b4b"
 
         container = QtWidgets.QWidget()
-        container.setStyleSheet(f"background-color: {self.bg_main}; color: {self.dark_gray}; font-family: 'Segoe UI', sans-serif;")
+        container.setStyleSheet(f"background-color: {self.bg_main}; color: {self.dark_text}; font-family: 'Segoe UI', sans-serif;")
         self.layout.addWidget(container)
         self.main_lay = QtWidgets.QVBoxLayout(container)
-        self.main_lay.setContentsMargins(10, 10, 10, 10)
-        self.main_lay.setSpacing(10)
+        self.main_lay.setContentsMargins(15, 15, 15, 15)
+        self.main_lay.setSpacing(15)
 
         # --- HEADER ---
         header = QtWidgets.QFrame()
-        header.setFixedHeight(50)
-        header.setStyleSheet(f"background-color: {self.primary}; border-radius: 4px; color: white;")
+        header.setFixedHeight(54)
+        header.setStyleSheet(f"background-color: {self.primary}; border-radius: 6px; color: white; border-bottom: 3px solid rgba(0,0,0,0.1);")
         h_lay = QtWidgets.QHBoxLayout(header)
-        h_lay.addWidget(FCLabel("<b>FluidNC</b> Control", size=12, color="white"))
+        h_lay.setContentsMargins(20, 0, 20, 0)
+        h_lay.addWidget(FCLabel("<b>FluidNC</b> DASHBOARD", size=11, color="white"))
         h_lay.addStretch()
-        self.state_indicator = QtWidgets.QFrame(); self.state_indicator.setFixedSize(10, 10); self.state_indicator.setStyleSheet("background: #bdc3c7; border-radius: 5px;")
-        self.state_label = FCLabel("OFFLINE", bold=True, color="white")
+        self.state_indicator = QtWidgets.QFrame(); self.state_indicator.setFixedSize(10, 10); self.state_indicator.setStyleSheet("background: #ecf0f1; border-radius: 5px;")
+        self.state_label = FCLabel("DISCONNECTED", bold=True, size=9, color="white")
         h_lay.addWidget(self.state_indicator); h_lay.addWidget(self.state_label)
-        h_lay.addSpacing(20)
-        self.com_port = FCComboBox(); self.com_port.setMinimumWidth(120); self.com_port.setStyleSheet("color: #333; background: white;")
+        h_lay.addSpacing(30)
+        self.com_port = FCComboBox(); self.com_port.setMinimumWidth(140); self.com_port.setStyleSheet("color: #333; background: white; padding: 4px;")
         self.com_refresh = RotatedToolButton(); self.com_refresh.setIcon(QtGui.QIcon(self.app.resource_location + '/reload32.png'))
-        self.connect_btn = FluidStyleButton(_("CONNECT"), "white", "#eee", self.primary)
+        self.connect_btn = FluidStyleButton(_("CONNECT"), "white", "#f8f9fa", self.primary)
         h_lay.addWidget(self.com_port); h_lay.addWidget(self.com_refresh); h_lay.addWidget(self.connect_btn)
         self.main_lay.addWidget(header)
 
-        # --- DASHBOARD (Two Column) ---
+        # --- DASHBOARD AREA ---
         dashboard = QtWidgets.QHBoxLayout()
-        dashboard.setSpacing(10)
+        dashboard.setSpacing(15)
         self.main_lay.addLayout(dashboard)
 
-        # LEFT COLUMN
-        left_col = QtWidgets.QVBoxLayout(); dashboard.addLayout(left_col, 2)
+        # LEFT COLUMN (DRO & JOG)
+        left_col = QtWidgets.QVBoxLayout(); dashboard.addLayout(left_col, 3)
 
-        # POSITION Card (Compact)
+        # POSITION Card (Merkezlenmiş Sabit Blok)
         pos_card = self.create_card(_("POSITION"))
         left_col.addWidget(pos_card)
-        pos_grid = GLay(); pos_card.layout().addLayout(pos_grid)
+        pos_container = QtWidgets.QWidget(); pos_container.setFixedWidth(400)
+        pos_container_lay = QtWidgets.QVBoxLayout(pos_container); pos_container_lay.setContentsMargins(0, 0, 0, 0)
+        pos_card.layout().addWidget(pos_container, alignment=Qt.AlignmentFlag.AlignCenter)
         
+        pos_grid = GLay(); pos_container_lay.addLayout(pos_grid)
         def add_dro(axis, r, color):
-            l = FCLabel(axis, bold=True, size=11); l.setStyleSheet(f"color: {color};")
-            z = FluidStyleButton("0", self.primary); z.setFixedSize(28, 28)
-            v = FCLabel("0.000", bold=True, size=22); v.setStyleSheet("font-family: 'Consolas'; color: #333;")
+            l = FCLabel(axis, bold=True, size=12); l.setStyleSheet(f"color: {color};")
+            z = FluidStyleButton("0", self.primary); z.setFixedSize(30, 30); z.setCursor(Qt.CursorShape.PointingHandCursor)
+            v = FCLabel("0.000", bold=True, size=24); v.setStyleSheet("font-family: 'Consolas'; color: #333;")
             v.setAlignment(Qt.AlignmentFlag.AlignRight)
             pos_grid.addWidget(l, r, 0); pos_grid.addWidget(z, r, 1); pos_grid.addWidget(v, r, 2)
             return z, v
@@ -271,77 +275,82 @@ class CNCControlUI:
         self.zero_z, self.z_val = add_dro("Z", 2, "#2980b9")
         
         pos_btns = QtWidgets.QHBoxLayout()
-        self.zero_all = FluidStyleButton(_("ZERO ALL")); self.home_btn = FluidStyleButton(_("HOME"), "#3498db"); self.unlock_btn = FluidStyleButton(_("UNLOCK"), "#f39c12")
+        self.zero_all = FluidStyleButton(_("ZERO ALL"), "#34495e"); self.home_btn = FluidStyleButton(_("HOME"), "#3498db"); self.unlock_btn = FluidStyleButton(_("UNLOCK"), "#f39c12")
         pos_btns.addWidget(self.zero_all); pos_btns.addWidget(self.home_btn); pos_btns.addWidget(self.unlock_btn)
-        pos_card.layout().addLayout(pos_btns)
+        pos_container_lay.addLayout(pos_btns)
 
-        # JOG Card (Fixed Layout)
+        # JOG Card (Merkezlenmiş Kumanda)
         jog_card = self.create_card(_("JOG CONTROL"))
         left_col.addWidget(jog_card)
-        jog_lay = QtWidgets.QVBoxLayout(); jog_card.layout().addLayout(jog_lay)
+        jog_container = QtWidgets.QWidget(); jog_container.setFixedWidth(400)
+        jog_lay = QtWidgets.QVBoxLayout(jog_container)
+        jog_card.layout().addWidget(jog_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.step_radio = RadioSet([{"label": "0.1", "value": "0.1"}, {"label": "1", "value": "1"}, {"label": "10", "value": "10"}, {"label": "100", "value": "100"}], orientation='horizontal', compact=True)
         jog_lay.addWidget(self.step_radio, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        jg = QtWidgets.QGridLayout(); jg.setSpacing(5); jg.setContentsMargins(50, 0, 50, 0)
+        jg = QtWidgets.QGridLayout(); jg.setSpacing(8); jg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.jog_up = FluidStyleButton("Y+"); self.jog_down = FluidStyleButton("Y-"); self.jog_left = FluidStyleButton("X-"); self.jog_right = FluidStyleButton("X+")
         self.jog_z_up = FluidStyleButton("Z+"); self.jog_z_down = FluidStyleButton("Z-")
-        for b in [self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down]: b.setFixedSize(45, 45)
+        for b in [self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down]: 
+            b.setFixedSize(54, 54); b.setCursor(Qt.CursorShape.PointingHandCursor)
         jg.addWidget(self.jog_up, 0, 1); jg.addWidget(self.jog_left, 1, 0); jg.addWidget(self.jog_right, 1, 2); jg.addWidget(self.jog_down, 2, 1)
-        jg.addWidget(self.jog_z_up, 0, 3); jg.addWidget(self.jog_z_down, 2, 3)
+        jg.addWidget(self.jog_z_up, 0, 4); jg.addWidget(self.jog_z_down, 2, 4)
+        jg.setColumnMinimumWidth(3, 30) # Gap between XY and Z
         jog_lay.addLayout(jg)
-        left_col.addStretch()
 
-        # RIGHT COLUMN
-        right_col = QtWidgets.QVBoxLayout(); dashboard.addLayout(right_col, 1)
+        # RIGHT COLUMN (OVERRIDES & SYSTEM)
+        right_col = QtWidgets.QVBoxLayout(); dashboard.addLayout(right_col, 2)
 
         # Overrides Card
         ovr_card = self.create_card(_("OVERRIDES"))
         right_col.addWidget(ovr_card)
         ovr_grid = QtWidgets.QGridLayout(); ovr_card.layout().addLayout(ovr_grid)
-        self.feed_plus = FluidStyleButton("+"); self.feed_minus = FluidStyleButton("-"); self.feed_reset = FluidStyleButton("100%")
-        self.spindle_plus = FluidStyleButton("+"); self.spindle_minus = FluidStyleButton("-"); self.spindle_reset = FluidStyleButton("100%")
-        for b in [self.feed_plus, self.feed_minus, self.feed_reset, self.spindle_plus, self.spindle_minus, self.spindle_reset]: b.setFixedWidth(50)
-        ovr_grid.addWidget(FCLabel(_("FEED")), 0, 0); ovr_grid.addWidget(self.feed_minus, 0, 1); ovr_grid.addWidget(self.feed_reset, 0, 2); ovr_grid.addWidget(self.feed_plus, 0, 3)
-        ovr_grid.addWidget(FCLabel(_("SPINDLE")), 1, 0); ovr_grid.addWidget(self.spindle_minus, 1, 1); ovr_grid.addWidget(self.spindle_reset, 1, 2); ovr_grid.addWidget(self.spindle_plus, 1, 3)
+        self.feed_plus = FluidStyleButton("+"); self.feed_minus = FluidStyleButton("-"); self.feed_reset = FluidStyleButton("100%", "#95a5a6")
+        self.spindle_plus = FluidStyleButton("+"); self.spindle_minus = FluidStyleButton("-"); self.spindle_reset = FluidStyleButton("100%", "#95a5a6")
+        for b in [self.feed_plus, self.feed_minus, self.feed_reset, self.spindle_plus, self.spindle_minus, self.spindle_reset]: b.setFixedWidth(54)
+        ovr_grid.addWidget(FCLabel(_("FEED"), bold=True), 0, 0); ovr_grid.addWidget(self.feed_minus, 0, 1); ovr_grid.addWidget(self.feed_reset, 0, 2); ovr_grid.addWidget(self.feed_plus, 0, 3)
+        ovr_grid.addWidget(FCLabel(_("SPINDLE"), bold=True), 1, 0); ovr_grid.addWidget(self.spindle_minus, 1, 1); ovr_grid.addWidget(self.spindle_reset, 1, 2); ovr_grid.addWidget(self.spindle_plus, 1, 3)
+        ovr_card.layout().addStretch()
 
         # System Card
-        sys_card = self.create_card(_("SYSTEM"))
+        sys_card = self.create_card(_("SYSTEM TOOLS"))
         right_col.addWidget(sys_card)
         sys_lay = QtWidgets.QVBoxLayout(); sys_card.layout().addLayout(sys_lay)
-        self.cfg_dump = FluidStyleButton("Config Dump"); self.sd_list = FluidStyleButton("List SD Files"); self.info_btn = FluidStyleButton("System Info")
+        self.cfg_dump = FluidStyleButton("Dump Config", "#34495e"); self.sd_list = FluidStyleButton("SD Files", "#34495e"); self.info_btn = FluidStyleButton("System Info", "#34495e")
         sys_lay.addWidget(self.cfg_dump); sys_lay.addWidget(self.sd_list); sys_lay.addWidget(self.info_btn)
         
         h_sys = QtWidgets.QHBoxLayout()
         self.estop_btn = FluidStyleButton(_("E-STOP"), "#e74c3c"); self.reset_btn = FluidStyleButton(_("RESET"), "#2ecc71")
         h_sys.addWidget(self.estop_btn); h_sys.addWidget(self.reset_btn)
         sys_lay.addLayout(h_sys)
-        right_col.addStretch()
+        sys_card.layout().addStretch()
 
         # --- TERMINAL (Bottom) ---
-        term_card = self.create_card(_("TERMINAL"))
-        self.main_lay.addWidget(term_card, 1)
+        term_card = self.create_card(_("TERMINAL CONSOLE"))
+        self.main_lay.addWidget(term_card, 2)
         term_lay = QtWidgets.QVBoxLayout(); term_card.layout().addLayout(term_lay)
-        self.console = FCTextArea(); self.console.setReadOnly(True); self.console.setStyleSheet("background: #2c3e50; color: #ecf0f1; font-family: 'Consolas'; border-radius: 4px;")
+        self.console = FCTextArea(); self.console.setReadOnly(True); self.console.setStyleSheet("background: #1e1e1e; color: #dcdcdc; font-family: 'Consolas'; border-radius: 4px; border: 1px solid #333;")
         term_lay.addWidget(self.console)
         
         inp_lay = QtWidgets.QHBoxLayout()
-        self.command_entry = FCEntry(); self.command_entry.setPlaceholderText(_("G-Code / FluidNC command..."))
+        self.command_entry = FCEntry(); self.command_entry.setPlaceholderText(_("Enter G-Code or FluidNC command ($)..."))
+        self.command_entry.setStyleSheet("padding: 8px; font-family: 'Consolas';")
         inp_lay.addWidget(self.command_entry)
-        self.play_btn = FluidStyleButton("▶", "#2ecc71"); self.pause_btn = FluidStyleButton("‖", "#f1c40f"); self.stop_btn = FluidStyleButton("■", "#e74c3c")
-        for b in [self.play_btn, self.pause_btn, self.stop_btn]: b.setFixedWidth(40)
+        self.play_btn = FluidStyleButton("RUN", "#2ecc71"); self.pause_btn = FluidStyleButton("PAUSE", "#f1c40f"); self.stop_btn = FluidStyleButton("STOP", "#e74c3c")
         inp_lay.addWidget(self.play_btn); inp_lay.addWidget(self.pause_btn); inp_lay.addWidget(self.stop_btn)
         term_lay.addLayout(inp_lay)
         
         prog_lay = QtWidgets.QHBoxLayout()
-        self.object_combo = FCComboBox(); self.progress = QtWidgets.QProgressBar(); self.progress.setFixedHeight(6)
-        prog_lay.addWidget(FCLabel(_("Job:"), size=8)); prog_lay.addWidget(self.object_combo); prog_lay.addWidget(self.progress)
+        self.object_combo = FCComboBox(); self.progress = QtWidgets.QProgressBar(); self.progress.setFixedHeight(8)
+        prog_lay.addWidget(FCLabel(_("Active Job:"), size=9)); prog_lay.addWidget(self.object_combo); prog_lay.addWidget(self.progress)
         term_lay.addLayout(prog_lay)
 
     def create_card(self, title):
         card = QtWidgets.QFrame()
-        card.setStyleSheet(f"background: {self.bg_card}; border-radius: 6px; border: 1px solid #dcdde1;")
-        lay = QtWidgets.QVBoxLayout(card); lay.setContentsMargins(10, 10, 10, 10); lay.setSpacing(8)
-        t_lbl = FCLabel(f"<b>{title}</b>", size=9, color=self.primary)
+        card.setStyleSheet(f"background: {self.bg_card}; border-radius: 8px; border: 1px solid #dfe4ea;")
+        lay = QtWidgets.QVBoxLayout(card); lay.setContentsMargins(15, 15, 15, 15); lay.setSpacing(10)
+        t_lbl = FCLabel(f"<b>{title}</b>", size=10, color=self.primary)
         lay.addWidget(t_lbl)
         line = QtWidgets.QFrame(); line.setFrameShape(QtWidgets.QFrame.Shape.HLine); line.setStyleSheet("color: #f1f2f6;"); lay.addWidget(line)
         return card
@@ -358,5 +367,6 @@ class CNCControlUI:
         if "MSG:ERR" in text: color = "#e74c3c"
         elif "MSG:INFO" in text: color = "#2ecc71"
         elif "MSG:WARN" in text: color = "#f1c40f"
-        self.console.appendHtml(f'<span style="color: #95a5a6;">[{time.strftime("%H:%M:%S")}]</span> <span style="color: {color};">{text}</span>')
+        prefix = f'<span style="color: #7f8c8d;">[{time.strftime("%H:%M:%S")}]</span>'
+        self.console.appendHtml(f'{prefix} <span style="color: {color};">{text}</span>')
         self.console.moveCursor(QtGui.QTextCursor.MoveOperation.End)
