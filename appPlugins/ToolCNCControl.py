@@ -34,6 +34,7 @@ class ToolCNCControl(AppTool):
     """
     CNC Connection and Management Tool for FlatCAM Plus.
     Supports GRBL-based controllers.
+    Fluid UI Edition.
     """
 
     update_status_sig = pyqtSignal(dict)
@@ -87,22 +88,16 @@ class ToolCNCControl(AppTool):
                 break
         
         if not tab_exists:
-            # Create a scroll area to host the tool UI
             self.scroll_area = VerticalScrollArea()
             self.scroll_area.setWidget(self)
             self.scroll_area.setWidgetResizable(True)
-            
-            # Add to plot_tab_area
             self.app.ui.plot_tab_area.addTab(self.scroll_area, _("CNC Settings"))
             self.app.ui.plot_tab_area.setCurrentWidget(self.scroll_area)
             
         self.set_tool_ui()
 
     def set_tool_ui(self):
-        self.ui.com_port_combo.clear()
-        ports = serial.tools.list_ports.comports()
-        for port in ports:
-            self.ui.com_port_combo.addItem(port.device)
+        self.on_refresh_ports()
         
         # Populate CNC Objects
         self.ui.object_combo.clear()
@@ -145,6 +140,10 @@ class ToolCNCControl(AppTool):
         self.ui.unlock_button.clicked.connect(lambda: self.send_command("$X"))
         self.ui.stop_button.clicked.connect(self.on_stop)
 
+        # Spindle
+        self.ui.spindle_on_button.clicked.connect(lambda: self.send_command(f"M3 S{self.ui.spindle_speed_entry.get_value()}"))
+        self.ui.spindle_off_button.clicked.connect(lambda: self.send_command("M5"))
+
         # Streaming
         self.ui.stream_start_button.clicked.connect(self.on_stream_start)
         self.ui.stream_pause_button.clicked.connect(self.on_stream_pause)
@@ -175,9 +174,7 @@ class ToolCNCControl(AppTool):
                 self.receiver_thread = threading.Thread(target=self.receive_loop, daemon=True)
                 self.receiver_thread.start()
                 
-                # Request initial status
                 self.send_command("?")
-                
             except Exception as e:
                 self.app.inform.emit(f"[ERROR_NOTCL] Connection failed: {str(e)}")
                 self.ui.append_console(f"Connection error: {str(e)}", "error")
@@ -187,7 +184,6 @@ class ToolCNCControl(AppTool):
     def disconnect(self):
         if self.is_streaming:
             self.on_stream_stop()
-            
         self.stop_thread.set()
         if self.ser:
             self.ser.close()
@@ -207,7 +203,6 @@ class ToolCNCControl(AppTool):
     def send_command(self, cmd):
         if not self.is_connected or not self.ser:
             return
-        
         try:
             self.ser.write((cmd + "\n").encode())
             self.append_console_sig.emit(cmd, "tx")
@@ -246,7 +241,7 @@ class ToolCNCControl(AppTool):
                             self.ok_received.set()
                         elif line.startswith("error:"):
                             self.append_console_sig.emit(line, "error")
-                            self.ok_received.set() # Don't block streaming on error for now
+                            self.ok_received.set()
                         else:
                             self.append_console_sig.emit(line, "rx")
                             self.parse_line(line)
@@ -254,12 +249,10 @@ class ToolCNCControl(AppTool):
                     log.error(f"Receive error: {str(e)}")
                     break
             
-            # Periodically poll status (only if not streaming or at low rate)
             now = time.time()
             if now - self.last_status_query > self.status_interval:
                 self.send_command("?")
                 self.last_status_query = now
-            
             time.sleep(0.01)
 
     def parse_line(self, line):
@@ -268,32 +261,40 @@ class ToolCNCControl(AppTool):
             status_dict = {"state": parts[0]}
             for part in parts[1:]:
                 if ":" in part:
-                    key, val = part.split(":")
-                    status_dict[key] = val
-            
+                    try:
+                        key, val = part.split(":")
+                        status_dict[key] = val
+                    except: pass
             self.update_status_sig.emit(status_dict)
 
     def update_status_display(self, data):
         if not data:
             self.ui.status_label.setText(_("Disconnected"))
-            self.ui.pos_label.setText("X: 0.000 Y: 0.000 Z: 0.000")
+            self.ui.status_label.setStyleSheet("background-color: #555; color: white; padding: 5px; border-radius: 4px;")
+            self.ui.x_val.setText("0.000")
+            self.ui.y_val.setText("0.000")
+            self.ui.z_val.setText("0.000")
             return
 
         self.machine_state = data.get("state", "Unknown")
-        self.ui.status_label.setText(f"<b>{self.machine_state}</b>")
+        self.ui.status_label.setText(f"<b>{self.machine_state.upper()}</b>")
         
         if self.machine_state == "Idle":
-            self.ui.status_label.setStyleSheet("color: green;")
+            self.ui.status_label.setStyleSheet("background-color: green; color: white; padding: 5px; border-radius: 4px;")
         elif "Alarm" in self.machine_state:
-            self.ui.status_label.setStyleSheet("color: red;")
+            self.ui.status_label.setStyleSheet("background-color: red; color: white; padding: 5px; border-radius: 4px;")
         elif "Run" in self.machine_state:
-            self.ui.status_label.setStyleSheet("color: blue;")
+            self.ui.status_label.setStyleSheet("background-color: blue; color: white; padding: 5px; border-radius: 4px;")
         else:
-            self.ui.status_label.setStyleSheet("color: orange;")
+            self.ui.status_label.setStyleSheet("background-color: orange; color: black; padding: 5px; border-radius: 4px;")
 
         if "WPos" in data:
-            self.wpos = [float(x) for x in data["WPos"].split(",")]
-            self.ui.pos_label.setText(f"X: {self.wpos[0]:.3f} Y: {self.wpos[1]:.3f} Z: {self.wpos[2]:.3f}")
+            try:
+                coords = [float(x) for x in data["WPos"].split(",")]
+                self.ui.x_val.setText(f"{coords[0]:.3f}")
+                self.ui.y_val.setText(f"{coords[1]:.3f}")
+                self.ui.z_val.setText(f"{coords[2]:.3f}")
+            except: pass
 
     # --- Streaming Logic ---
     def on_stream_start(self):
@@ -301,7 +302,6 @@ class ToolCNCControl(AppTool):
             if self.streaming_paused:
                 self.streaming_paused = False
                 self.ui.stream_pause_button.setText(_("Pause"))
-                self.ui.append_console(_("Streaming Resumed"), "info")
                 return
             return
 
@@ -325,23 +325,20 @@ class ToolCNCControl(AppTool):
         self.ui.stream_start_button.setDisabled(True)
         self.ui.stream_pause_button.setDisabled(False)
         self.ui.stream_stop_button.setDisabled(False)
-        self.ui.append_console(_("Streaming Started") + f": {len(self.gcode_lines)} lines", "info")
+        self.ui.append_console(_("Streaming Started"), "info")
 
         threading.Thread(target=self.stream_loop, daemon=True).start()
 
     def on_stream_pause(self):
-        if not self.is_streaming:
-            return
+        if not self.is_streaming: return
         self.streaming_paused = not self.streaming_paused
         self.ui.stream_pause_button.setText(_("Resume") if self.streaming_paused else _("Pause"))
-        self.ui.append_console(_("Streaming Paused") if self.streaming_paused else _("Streaming Resumed"), "info")
 
     def on_stream_stop(self):
         self.is_streaming = False
         self.ui.stream_start_button.setDisabled(False)
         self.ui.stream_pause_button.setDisabled(True)
         self.ui.stream_stop_button.setDisabled(True)
-        self.ui.append_console(_("Streaming Stopped"), "info")
         self.update_progress_sig.emit(0, "00:00")
 
     def stream_loop(self):
@@ -353,30 +350,21 @@ class ToolCNCControl(AppTool):
             line = self.gcode_lines[self.current_line_idx]
             self.ok_received.clear()
             self.send_command(line)
-            
-            # Wait for 'ok' from GRBL
-            if not self.ok_received.wait(timeout=5.0):
-                self.append_console_sig.emit("Timeout waiting for 'ok'", "error")
-            
+            self.ok_received.wait(timeout=10.0)
             self.current_line_idx += 1
             
-            # Update progress
             progress = (self.current_line_idx / len(self.gcode_lines)) * 100
             elapsed = time.time() - self.start_time
+            rem_str = "--:--"
             if progress > 0:
                 total_est = elapsed / (progress / 100.0)
                 remaining = total_est - elapsed
                 rem_str = time.strftime('%M:%S', time.gmtime(remaining))
-            else:
-                rem_str = "--:--"
             
             self.update_progress_sig.emit(progress, rem_str)
 
-        if self.current_line_idx >= len(self.gcode_lines):
-            self.append_console_sig.emit(_("Streaming Finished Successfully"), "info")
-            self.is_streaming = False
-            # Call back to UI thread to reset buttons
-            QtCore.QMetaObject.invokeMethod(self.ui.stream_start_button, "setEnabled", Qt.ConnectionType.QueuedConnection, QtCore.Q_ARG(bool, True))
+        self.is_streaming = False
+        QtCore.QMetaObject.invokeMethod(self.ui.stream_start_button, "setEnabled", Qt.ConnectionType.QueuedConnection, QtCore.Q_ARG(bool, True))
 
     def update_progress_ui(self, percent, remaining):
         self.ui.progress_bar.setValue(int(percent))
@@ -389,189 +377,228 @@ class CNCControlUI:
     def __init__(self, layout, app):
         self.app = app
         self.layout = layout
+        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(10)
 
-        # Title
-        self.title_label = FCLabel(f"<b>{self.pluginName}</b>", size=16)
-        self.layout.addWidget(self.title_label)
+        # Header: Connection & Status
+        header_layout = QtWidgets.QHBoxLayout()
+        self.layout.addLayout(header_layout)
 
-        # --- Connection Frame ---
+        # --- Connection Group ---
         self.conn_frame = FCFrame()
-        self.layout.addWidget(self.conn_frame)
+        header_layout.addWidget(self.conn_frame, 2)
         self.conn_layout = GLay(self.conn_frame)
-
-        self.conn_label = FCLabel(f"<b>{_('Connection')}</b>")
-        self.conn_layout.addWidget(self.conn_label, 0, 0, 1, 2)
-
+        
         self.com_port_combo = FCComboBox()
-        self.conn_layout.addWidget(FCLabel(_("Port:")), 1, 0)
-        self.conn_layout.addWidget(self.com_port_combo, 1, 1)
+        self.conn_layout.addWidget(FCLabel(_("Port:")), 0, 0)
+        self.conn_layout.addWidget(self.com_port_combo, 0, 1)
 
         self.com_refresh_button = RotatedToolButton()
         self.com_refresh_button.setIcon(QtGui.QIcon(self.app.resource_location + '/reload32.png'))
-        self.conn_layout.addWidget(self.com_refresh_button, 1, 2)
+        self.conn_layout.addWidget(self.com_refresh_button, 0, 2)
 
         self.baud_rate_combo = FCComboBox()
-        self.baud_rate_combo.addItems(["9600", "19200", "38400", "57600", "115200"])
+        self.baud_rate_combo.addItems(["9600", "115200", "250000"])
         self.baud_rate_combo.set_value("115200")
-        self.conn_layout.addWidget(FCLabel(_("Baud:")), 2, 0)
-        self.conn_layout.addWidget(self.baud_rate_combo, 2, 1)
+        self.conn_layout.addWidget(FCLabel(_("Baud:")), 1, 0)
+        self.conn_layout.addWidget(self.baud_rate_combo, 1, 1)
 
         self.connect_button = FCButton(_("Connect"))
-        self.conn_layout.addWidget(self.connect_button, 3, 0, 1, 3)
+        self.connect_button.setMinimumHeight(40)
+        self.conn_layout.addWidget(self.connect_button, 0, 3, 2, 1)
 
-        # --- Status Frame ---
-        self.status_frame = FCFrame()
-        self.layout.addWidget(self.status_frame)
-        self.status_layout = GLay(self.status_frame)
-
-        self.status_title = FCLabel(f"<b>{_('Machine Status')}</b>")
-        self.status_layout.addWidget(self.status_title, 0, 0, 1, 2)
-
-        self.status_label = FCLabel("<b>Disconnected</b>")
-        self.status_layout.addWidget(FCLabel(_("State:")), 1, 0)
-        self.status_layout.addWidget(self.status_label, 1, 1)
-
-        self.pos_label = FCLabel("X: 0.000 Y: 0.000 Z: 0.000")
-        self.pos_label.setStyleSheet("font-family: monospace; font-size: 12pt;")
-        self.status_layout.addWidget(self.pos_label, 2, 0, 1, 2)
-
-        # --- Jogging Frame ---
-        self.jog_frame = FCFrame()
-        self.layout.addWidget(self.jog_frame)
-        self.jog_layout = GLay(self.jog_frame)
+        # --- Machine State Group ---
+        self.state_frame = FCFrame()
+        header_layout.addWidget(self.state_frame, 1)
+        self.state_layout = QtWidgets.QVBoxLayout(self.state_frame)
+        self.state_layout.setContentsMargins(5, 5, 5, 5)
         
-        self.jog_title = FCLabel(f"<b>{_('Jogging')}</b>")
-        self.jog_layout.addWidget(self.jog_title, 0, 0, 1, 2)
+        self.state_layout.addWidget(FCLabel(f"<b>{_('Machine State')}</b>", alignment=Qt.AlignmentFlag.AlignCenter))
+        self.status_label = FCLabel("DISCONNECTED", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setStyleSheet("background-color: #555; color: white; padding: 5px; border-radius: 4px; font-weight: bold;")
+        self.state_layout.addWidget(self.status_label)
 
+        # --- DRO (Digital Read Out) Section ---
+        self.dro_frame = FCFrame()
+        self.dro_frame.setStyleSheet("background-color: #1a1a1a; border: 2px solid #333; border-radius: 8px;")
+        self.layout.addWidget(self.dro_frame)
+        self.dro_layout = GLay(self.dro_frame)
+        self.dro_layout.setContentsMargins(20, 15, 20, 15)
+
+        def create_dro_row(label, color):
+            lbl = FCLabel(f"<b>{label}</b>")
+            lbl.setStyleSheet(f"color: {color}; font-size: 24pt; font-family: 'Segoe UI', Arial;")
+            val = FCLabel("0.000")
+            val.setStyleSheet(f"color: white; font-size: 32pt; font-family: 'Consolas', monospace;")
+            val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            return lbl, val
+
+        self.x_lbl, self.x_val = create_dro_row("X", "#ff4444")
+        self.y_lbl, self.y_val = create_dro_row("Y", "#44ff44")
+        self.z_lbl, self.z_val = create_dro_row("Z", "#4444ff")
+
+        self.dro_layout.addWidget(self.x_lbl, 0, 0)
+        self.dro_layout.addWidget(self.x_val, 0, 1)
+        self.dro_layout.addWidget(self.y_lbl, 1, 0)
+        self.dro_layout.addWidget(self.y_val, 1, 1)
+        self.dro_layout.addWidget(self.z_lbl, 2, 0)
+        self.dro_layout.addWidget(self.z_val, 2, 1)
+
+        # Bottom Area: Controls, Spindle, Streaming
+        bottom_layout = QtWidgets.QHBoxLayout()
+        self.layout.addLayout(bottom_layout)
+
+        # Left Column: Jogging & Overrides
+        left_col = QtWidgets.QVBoxLayout()
+        bottom_layout.addLayout(left_col, 2)
+
+        # --- Jogging ---
+        self.jog_group = QtWidgets.QGroupBox(_("Movement Controls"))
+        left_col.addWidget(self.jog_group)
+        self.jog_layout = GLay(self.jog_group)
+        
         self.jog_wdg = FCJog(self.app)
-        self.jog_layout.addWidget(self.jog_wdg, 1, 0, 1, 2)
+        self.jog_layout.addWidget(self.jog_wdg, 0, 0, 1, 2)
 
         self.jog_step_entry = FCDoubleSpinner()
-        self.jog_step_entry.set_range(0.001, 1000.0)
+        self.jog_step_entry.set_range(0.001, 100.0)
         self.jog_step_entry.set_value(1.0)
-        self.jog_layout.addWidget(FCLabel(_("Step:")), 2, 0)
-        self.jog_layout.addWidget(self.jog_step_entry, 2, 1)
+        self.jog_layout.addWidget(FCLabel(_("Step (mm):")), 1, 0)
+        self.jog_layout.addWidget(self.jog_step_entry, 1, 1)
 
         self.jog_feed_entry = FCSpinner()
-        self.jog_feed_entry.set_range(1, 10000)
+        self.jog_feed_entry.set_range(1, 5000)
         self.jog_feed_entry.set_value(1000)
-        self.jog_layout.addWidget(FCLabel(_("Feed:")), 3, 0)
-        self.jog_layout.addWidget(self.jog_feed_entry, 3, 1)
+        self.jog_layout.addWidget(FCLabel(_("Feed (mm/min):")), 2, 0)
+        self.jog_layout.addWidget(self.jog_feed_entry, 2, 1)
 
-        # --- Control & Zeroing ---
-        self.ctrl_frame = FCFrame()
-        self.layout.addWidget(self.ctrl_frame)
-        self.ctrl_layout = GLay(self.ctrl_frame)
-
+        # --- Zeroing & System ---
+        self.sys_group = QtWidgets.QGroupBox(_("Zeroing & Homing"))
+        left_col.addWidget(self.sys_group)
+        self.sys_layout = GLay(self.sys_group)
         self.zero_wdg = FCZeroAxes(self.app)
-        self.ctrl_layout.addWidget(self.zero_wdg, 0, 0, 1, 2)
+        self.sys_layout.addWidget(self.zero_wdg, 0, 0, 1, 2)
 
-        self.unlock_button = FCButton(_("Unlock ($X)"))
-        self.reset_button = FCButton(_("Reset (Ctrl+X)"))
-        self.stop_button = FCButton(_("STOP (!)"))
-        self.stop_button.setStyleSheet("background-color: red; color: white; font-weight: bold;")
+        self.unlock_button = FCButton(_("Unlock"))
+        self.reset_button = FCButton(_("Reset"))
+        self.stop_button = FCButton(_("STOP"))
+        self.stop_button.setStyleSheet("background-color: #d32f2f; color: white; font-weight: bold; height: 40px;")
         
-        self.ctrl_layout.addWidget(self.unlock_button, 1, 0)
-        self.ctrl_layout.addWidget(self.reset_button, 1, 1)
-        self.ctrl_layout.addWidget(self.stop_button, 2, 0, 1, 2)
+        self.sys_layout.addWidget(self.unlock_button, 1, 0)
+        self.sys_layout.addWidget(self.reset_button, 1, 1)
+        self.sys_layout.addWidget(self.stop_button, 2, 0, 1, 2)
 
-        # --- G-Code Sender Frame ---
-        self.stream_frame = FCFrame()
-        self.layout.addWidget(self.stream_frame)
-        self.stream_layout = GLay(self.stream_frame)
+        # Right Column: Spindle, Streaming, Console
+        right_col = QtWidgets.QVBoxLayout()
+        bottom_layout.addLayout(right_col, 3)
 
-        self.stream_title = FCLabel(f"<b>{_('G-Code Sender')}</b>")
-        self.stream_layout.addWidget(self.stream_title, 0, 0, 1, 2)
+        # --- Spindle Control ---
+        self.spindle_group = QtWidgets.QGroupBox(_("Spindle Control"))
+        right_col.addWidget(self.spindle_group)
+        self.spindle_layout = GLay(self.spindle_group)
+        
+        self.spindle_speed_entry = FCSpinner()
+        self.spindle_speed_entry.set_range(0, 30000)
+        self.spindle_speed_entry.set_value(10000)
+        self.spindle_layout.addWidget(FCLabel(_("Speed (RPM):")), 0, 0)
+        self.spindle_layout.addWidget(self.spindle_speed_entry, 0, 1)
+
+        self.spindle_on_button = FCButton(_("Spindle ON"))
+        self.spindle_on_button.setStyleSheet("background-color: #388e3c; color: white;")
+        self.spindle_off_button = FCButton(_("Spindle OFF"))
+        self.spindle_off_button.setStyleSheet("background-color: #555; color: white;")
+        
+        self.spindle_layout.addWidget(self.spindle_on_button, 1, 0)
+        self.spindle_layout.addWidget(self.spindle_off_button, 1, 1)
+
+        # --- G-Code Sender ---
+        self.stream_group = QtWidgets.QGroupBox(_("Job Streaming"))
+        right_col.addWidget(self.stream_group)
+        self.stream_layout = GLay(self.stream_group)
 
         self.object_combo = FCComboBox()
-        self.stream_layout.addWidget(FCLabel(_("Job:")), 1, 0)
-        self.stream_layout.addWidget(self.object_combo, 1, 1)
+        self.stream_layout.addWidget(FCLabel(_("Job:")), 0, 0)
+        self.stream_layout.addWidget(self.object_combo, 0, 1)
 
-        self.stream_start_button = FCButton(_("Start Streaming"))
+        self.stream_start_button = FCButton(_("Start Job"))
+        self.stream_start_button.setMinimumHeight(40)
+        self.stream_start_button.setStyleSheet("background-color: #1976d2; color: white; font-weight: bold;")
         self.stream_pause_button = FCButton(_("Pause"))
         self.stream_stop_button = FCButton(_("Stop"))
         
-        self.stream_layout.addWidget(self.stream_start_button, 2, 0, 1, 2)
-        self.stream_layout.addWidget(self.stream_pause_button, 3, 0)
-        self.stream_layout.addWidget(self.stream_stop_button, 3, 1)
+        self.stream_layout.addWidget(self.stream_start_button, 1, 0, 1, 2)
+        self.stream_layout.addWidget(self.stream_pause_button, 2, 0)
+        self.stream_layout.addWidget(self.stream_stop_button, 2, 1)
 
         self.progress_bar = QtWidgets.QProgressBar()
-        self.stream_layout.addWidget(self.progress_bar, 4, 0, 1, 2)
-
-        self.remaining_label = FCLabel(_("Remaining: 00:00"))
-        self.stream_layout.addWidget(self.remaining_label, 5, 0, 1, 2)
+        self.stream_layout.addWidget(self.progress_bar, 3, 0, 1, 2)
+        self.remaining_label = FCLabel(_("Remaining: 00:00"), alignment=Qt.AlignmentFlag.AlignCenter)
+        self.stream_layout.addWidget(self.remaining_label, 4, 0, 1, 2)
 
         # --- Console ---
-        self.console_frame = FCFrame()
-        self.layout.addWidget(self.console_frame)
-        self.console_layout = GLay(self.console_frame)
-
-        self.console_title = FCLabel(f"<b>{_('Console')}</b>")
-        self.console_layout.addWidget(self.console_title, 0, 0, 1, 2)
+        self.console_group = QtWidgets.QGroupBox(_("Console"))
+        right_col.addWidget(self.console_group)
+        self.console_layout = GLay(self.console_group)
 
         self.console_output = FCTextArea()
         self.console_output.setReadOnly(True)
-        self.console_output.setMinimumHeight(150)
-        self.console_layout.addWidget(self.console_output, 1, 0, 1, 2)
+        self.console_output.setMinimumHeight(120)
+        self.console_output.setStyleSheet("background-color: #111; color: #0f0; font-family: monospace;")
+        self.console_layout.addWidget(self.console_output, 0, 0, 1, 2)
 
         self.command_entry = FCEntry()
-        self.command_entry.setPlaceholderText(_("Enter G-Code..."))
-        self.console_layout.addWidget(self.command_entry, 2, 0)
-
+        self.command_entry.setPlaceholderText(_("Enter G-Code command..."))
+        self.console_layout.addWidget(self.command_entry, 1, 0)
         self.send_button = FCButton(_("Send"))
-        self.console_layout.addWidget(self.send_button, 2, 1)
-
-        self.layout.addStretch()
+        self.console_layout.addWidget(self.send_button, 1, 1)
 
     def set_connected_ui(self):
         self.connect_button.setText(_("Disconnect"))
-        self.connect_button.setStyleSheet("background-color: orange;")
+        self.connect_button.setStyleSheet("background-color: #f57c00; color: white; font-weight: bold;")
         self.conn_frame.setDisabled(False) 
         self.com_port_combo.setDisabled(True)
         self.baud_rate_combo.setDisabled(True)
         self.com_refresh_button.setDisabled(True)
         
-        self.status_frame.setDisabled(False)
-        self.jog_frame.setDisabled(False)
-        self.ctrl_frame.setDisabled(False)
-        self.stream_frame.setDisabled(False)
-        self.console_frame.setDisabled(False)
+        self.dro_frame.setDisabled(False)
+        self.jog_group.setDisabled(False)
+        self.sys_group.setDisabled(False)
+        self.spindle_group.setDisabled(False)
+        self.stream_group.setDisabled(False)
+        self.console_group.setDisabled(False)
+        self.state_frame.setDisabled(False)
         
         self.stream_pause_button.setDisabled(True)
         self.stream_stop_button.setDisabled(True)
 
     def set_disconnected_ui(self):
         self.connect_button.setText(_("Connect"))
-        self.connect_button.setStyleSheet("")
+        self.connect_button.setStyleSheet("background-color: #2e7d32; color: white; font-weight: bold;")
         self.com_port_combo.setDisabled(False)
         self.baud_rate_combo.setDisabled(False)
         self.com_refresh_button.setDisabled(False)
         
-        self.status_frame.setDisabled(True)
-        self.jog_frame.setDisabled(True)
-        self.ctrl_frame.setDisabled(True)
-        self.stream_frame.setDisabled(True)
-        self.console_frame.setDisabled(True)
+        self.dro_frame.setDisabled(True)
+        self.jog_group.setDisabled(True)
+        self.sys_group.setDisabled(True)
+        self.spindle_group.setDisabled(True)
+        self.stream_group.setDisabled(True)
+        self.console_group.setDisabled(True)
+        self.state_frame.setDisabled(True)
         
-        self.status_label.setText("<b>Disconnected</b>")
-        self.status_label.setStyleSheet("")
-        self.pos_label.setText("X: 0.000 Y: 0.000 Z: 0.000")
+        self.status_label.setText("DISCONNECTED")
+        self.status_label.setStyleSheet("background-color: #555; color: white; padding: 5px; border-radius: 4px;")
+        self.x_val.setText("0.000")
+        self.y_val.setText("0.000")
+        self.z_val.setText("0.000")
 
     def append_console(self, text, type):
-        color = "black"
+        color = "#aaa"
         prefix = ""
-        if type == "tx":
-            color = "blue"
-            prefix = "> "
-        elif type == "rx":
-            color = "green"
-            prefix = "< "
-        elif type == "error":
-            color = "red"
-            prefix = "!! "
-        elif type == "info":
-            color = "gray"
-            prefix = "i "
+        if type == "tx": color = "#3498db"; prefix = "> "
+        elif type == "rx": color = "#2ecc71"; prefix = "< "
+        elif type == "error": color = "#e74c3c"; prefix = "!! "
+        elif type == "info": color = "#f1c40f"; prefix = "i "
         
         self.console_output.appendHtml(f'<span style="color: {color};">{prefix}{text}</span>')
         self.console_output.moveCursor(QtGui.QTextCursor.MoveOperation.End)
