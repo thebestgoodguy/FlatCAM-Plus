@@ -3365,7 +3365,7 @@ class App(QtCore.QObject):
 
                 # FlatCAM EVO Author
                 self.prog_grid_lay.addWidget(FCLabel('%s' % "Marius Stanciu"), 2, 0)
-                self.prog_grid_lay.addWidget(FCLabel('%s' % _("FlatCAM Evo Author/Maintainer")), 2, 1)
+                self.prog_grid_lay.addWidget(FCLabel('%s' % _("FlatCAM Plus Author/Maintainer")), 2, 1)
                 self.prog_grid_lay.addWidget(FCLabel('%s' % "<marius_adrian@yahoo.com>"), 2, 2)
                 self.prog_grid_lay.addWidget(FCLabel(''), 3, 0)
 
@@ -7153,7 +7153,7 @@ class App(QtCore.QObject):
         # main Items categories
         general_cat = d_properties_tw.addParent(root, _('General'), expanded=True, color=p_color, font=font)
         d_properties_tw.addChild(parent=general_cat,
-                                 title=['%s:' % _("Name"), '%s' % _("FlatCAM Evo")], column1=True)
+                                 title=['%s:' % _("Name"), '%s' % _("FlatCAM Plus")], column1=True)
         d_properties_tw.addChild(parent=general_cat,
                                  title=['%s:' % _("Version"), '%s' % str(self.version)], column1=True)
         d_properties_tw.addChild(parent=general_cat,

@@ -1,4 +1,4 @@
-FlatCAM Evo (c) 2019 - by Marius Stanciu
+FlatCAM Plus (c) 2019 - by Marius Stanciu
 
 Based on FlatCAM: 
 2D Computer-Aided PCB Manufacturing by (c) 2014-2018 Juan Pablo Caram
@@ -17,7 +17,7 @@ https://www.youtube.com/playlist?list=PLVvP2SYRpx-AQgNlfoxw93tXUXon7G94_
 
 You can contact me on my email address found in the app in:
 
-Menu -> Help -> About FlatCAM -> Programmers -> Marius Stanciu
+Menu -> Help -> About FlatCAM Plus -> Programmers -> Marius Stanciu
 
 
 ## Running from Sources (any operating system)
@@ -96,7 +96,7 @@ and for each wheel file (*.whl) run:
 D:\my_folder\> pip install --upgrade package_from_requirements.whl
 ```
 
-Run FlatCAM beta from the installation folder (e.g D:\FlatCAM_beta) in the Command Prompt with the following command:
+Run FlatCAM Plus from the installation folder (e.g D:\FlatCAM_beta) in the Command Prompt with the following command:
 
 ```bash
 cd D:\FlatCAM_beta
