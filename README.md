@@ -25,7 +25,7 @@ Menu -> Help -> About FlatCAM Plus -> Programmers -> Marius Stanciu
 1. Git clone the project
 
 ```bash
-git clone https://bitbucket.org/marius_stanciu/flatcam_beta
+git clone https://github.com/thebestgoodguy/flatcam.git
 ```
 
 2. Create a [mamba/conda](https://conda-forge.org/download/) environment
@@ -50,13 +50,13 @@ python flatcam.py
 ## Old Instructions
 
 - Make sure that your OS is up-to-date
-- Download sources from: https://bitbucket.org/jpcgt/flatcam/downloads/
+- Download sources from: https://github.com/thebestgoodguy/flatcam/archive/refs/heads/main.zip
 - Unzip them on an HDD location that your user has permissions for.
 
 ### Windows
 
 - download the provided installer (for your OS flavor 64bit or 32bit) from:
-https://bitbucket.org/jpcgt/flatcam/downloads/
+https://github.com/thebestgoodguy/flatcam/archive/refs/heads/main.zip
 - execute the installer and install the program. It is recommended to install as a Local User.
 
 or from sources:
@@ -106,14 +106,14 @@ python FlatCAM.py
 ### Linux
 
 - create a folder to hold the sources somewhere on your HDD: `mkdir FlatCAM-beta`
-- unzip in this folder the sources downloaded from https://bitbucket.org/jpcgt/flatcam/downloads/
+- unzip in this folder the sources downloaded from https://github.com/thebestgoodguy/flatcam/archive/refs/heads/main.zip
 Using commands (e.g using the sources for FlatCAM beta 8.995):
 
 ```bash
 cd ~/FlatCAM-beta
-wget https://bitbucket.org/jpcgt/flatcam/downloads/FlatCAM_beta_8.995_sources.zip
-unzip FlatCAM_beta_8.995_sources.zip
-cd FlatCAM_beta_8.995_sources
+wget https://github.com/thebestgoodguy/flatcam/archive/refs/heads/main.zip
+unzip main.zip
+cd flatcam-main
 ```
 
 - make sure that Python 3.9 is installed on your OS and that the command: python3 -V confirm it
@@ -161,14 +161,14 @@ Instructions from here: https://gist.github.com/natevw/3e6fc929aff358b38c0a#gist
 
 - create a folder to hold the sources somewhere on your HDD: `mkdir FlatCAM-beta`
 
-- unzip in this folder the sources downloaded from https://bitbucket.org/jpcgt/flatcam/downloads/
+- unzip in this folder the sources downloaded from https://github.com/thebestgoodguy/flatcam/archive/refs/heads/main.zip
 Using commands (e.g using the sources for FlatCAM beta 8.995):
 
 ```bash
 cd ~/FlatCAM-beta
-wget https://bitbucket.org/jpcgt/flatcam/downloads/FlatCAM_beta_8.995_sources.zip
-unzip FlatCAM_beta_8.995_sources.zip
-cd FlatCAM_beta_8.995_sources
+wget https://github.com/thebestgoodguy/flatcam/archive/refs/heads/main.zip
+unzip main.zip
+cd flatcam-main
 ```
 - check if Homebrew is installed:
 
