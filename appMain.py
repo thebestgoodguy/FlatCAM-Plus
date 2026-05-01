@@ -7267,7 +7267,7 @@ class App(QtCore.QObject):
         f.close()
 
         # ## Latest version?
-        if self.version >= data["version"]:
+        if str(self.version) >= str(data["version"]):
             self.log.debug("THe application is up to date!")
             self.inform.emit('[success] %s' % _("The application is up to date!"))
             return

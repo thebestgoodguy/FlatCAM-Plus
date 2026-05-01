@@ -68,16 +68,35 @@ class ToolCNCControl(AppTool):
         self.start_time = 0
         self.ok_received = threading.Event()
 
+        self.scroll_area = None
+
         self.connect_signals_at_init()
 
-    def install(self, icon=None, separator=None, **kwargs):
-        AppTool.install(self, icon, separator, shortcut='', **kwargs)
+    def install(self, icon=None, separator=None, shortcut=None, **kwargs):
+        AppTool.install(self, icon, separator, shortcut=shortcut, **kwargs)
 
     def run(self, toggle=True):
         self.app.defaults.report_usage("ToolCNCControl()")
-        super().run()
+        
+        # Check if tab already exists in plot_tab_area
+        tab_exists = False
+        for i in range(self.app.ui.plot_tab_area.count()):
+            if self.app.ui.plot_tab_area.tabText(i) == _("CNC Settings"):
+                self.app.ui.plot_tab_area.setCurrentIndex(i)
+                tab_exists = True
+                break
+        
+        if not tab_exists:
+            # Create a scroll area to host the tool UI
+            self.scroll_area = VerticalScrollArea()
+            self.scroll_area.setWidget(self)
+            self.scroll_area.setWidgetResizable(True)
+            
+            # Add to plot_tab_area
+            self.app.ui.plot_tab_area.addTab(self.scroll_area, _("CNC Settings"))
+            self.app.ui.plot_tab_area.setCurrentWidget(self.scroll_area)
+            
         self.set_tool_ui()
-        self.app.ui.notebook.setTabText(2, _("CNC Control"))
 
     def set_tool_ui(self):
         self.ui.com_port_combo.clear()
@@ -338,8 +357,6 @@ class ToolCNCControl(AppTool):
             # Wait for 'ok' from GRBL
             if not self.ok_received.wait(timeout=5.0):
                 self.append_console_sig.emit("Timeout waiting for 'ok'", "error")
-                # self.is_streaming = False
-                # break
             
             self.current_line_idx += 1
             
@@ -367,7 +384,7 @@ class ToolCNCControl(AppTool):
 
 
 class CNCControlUI:
-    pluginName = _("CNC Control")
+    pluginName = _("CNC Settings")
 
     def __init__(self, layout, app):
         self.app = app
