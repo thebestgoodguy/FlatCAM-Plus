@@ -272,7 +272,7 @@ class CNCControlUI:
         pos_frame.setStyleSheet(f"background: {self.bg_panel}; border: 1px solid #222; border-radius: 6px;")
         sidebar.addWidget(pos_frame)
         pos_lay = QtWidgets.QVBoxLayout(pos_frame)
-        pos_lay.addWidget(FCLabel(_("POSITION"), color=self.accent, weight="bold", size=9))
+        pos_lay.addWidget(FCLabel(_("POSITION"), color=self.accent, bold=True, size=9))
         
         def add_pos_row(axis, color):
             row = QtWidgets.QHBoxLayout()
@@ -310,7 +310,7 @@ class CNCControlUI:
         jog_frame = QtWidgets.QFrame(); jog_frame.setStyleSheet(pos_frame.styleSheet())
         sidebar.addWidget(jog_frame)
         jog_lay = QtWidgets.QVBoxLayout(jog_frame)
-        jog_lay.addWidget(FCLabel(_("JOG CONTROL"), color=self.accent, weight="bold", size=9))
+        jog_lay.addWidget(FCLabel(_("JOG CONTROL"), color=self.accent, bold=True, size=9))
         
         self.step_radio = RadioSet([{"label": "0.1", "value": "0.1"}, {"label": "1", "value": "1"}, {"label": "10", "value": "10"}], orientation='horizontal', compact=True)
         jog_lay.addWidget(self.step_radio)
@@ -337,7 +337,7 @@ class CNCControlUI:
         center_panel.addWidget(view_frame, 3)
         view_lay = QtWidgets.QVBoxLayout(view_frame)
         view_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        grid_lbl = FCLabel("3D VIEW AREA", size=14, color="#333", weight="bold")
+        grid_lbl = FCLabel("3D VIEW AREA", size=14, color="#333", bold=True)
         view_lay.addWidget(grid_lbl)
         
         # Console
@@ -364,7 +364,7 @@ class CNCControlUI:
         for i in range(4):
             card = QtWidgets.QFrame(); card.setFixedHeight(80); card.setStyleSheet("background: #111; border: 1px solid #222; border-radius: 6px;")
             cl = QtWidgets.QVBoxLayout(card)
-            cl.addWidget(FCLabel(f"T{i+1}", color=self.accent, weight="bold"))
+            cl.addWidget(FCLabel(f"T{i+1}", color=self.accent, bold=True))
             cl.addWidget(FCLabel(_("Not Configured"), size=8, color="#555"))
             footer.addWidget(card)
 
