@@ -303,7 +303,7 @@ class CNCControlUI:
         # Jog Card
         jog_card = self.create_card(_("JOG CONTROL"))
         left_col.addWidget(jog_card)
-        jog_lay = QtWidgets.QVBoxLayout(jog_card.layout())
+        jog_lay = jog_card.layout()
         
         self.step_radio = RadioSet([{"label": "0.1", "value": "0.1"}, {"label": "1", "value": "1"}, {"label": "10", "value": "10"}, {"label": "100", "value": "100"}], orientation='horizontal', compact=True)
         jog_lay.addWidget(self.step_radio)
@@ -324,7 +324,8 @@ class CNCControlUI:
         # Overrides Card
         ovr_card = self.create_card(_("OVERRIDES"))
         right_col.addWidget(ovr_card)
-        ovr_lay = QtWidgets.QGridLayout(ovr_card.layout())
+        ovr_lay = QtWidgets.QGridLayout()
+        ovr_card.layout().addLayout(ovr_lay)
         self.feed_plus = FluidStyleButton("F+"); self.feed_minus = FluidStyleButton("F-"); self.feed_reset = FluidStyleButton("100%")
         self.spindle_plus = FluidStyleButton("S+"); self.spindle_minus = FluidStyleButton("S-"); self.spindle_reset = FluidStyleButton("100%")
         ovr_lay.addWidget(FCLabel("FEED"), 0, 0); ovr_lay.addWidget(self.feed_minus, 0, 1); ovr_lay.addWidget(self.feed_reset, 0, 2); ovr_lay.addWidget(self.feed_plus, 0, 3)
@@ -333,7 +334,8 @@ class CNCControlUI:
         # System Features Card
         feat_card = self.create_card(_("SYSTEM"))
         right_col.addWidget(feat_card)
-        feat_lay = QtWidgets.QGridLayout(feat_card.layout())
+        feat_lay = QtWidgets.QGridLayout()
+        feat_card.layout().addLayout(feat_lay)
         self.cfg_dump = FluidStyleButton("Config Dump"); self.sd_list = FluidStyleButton("List SD Files"); self.info_btn = FluidStyleButton("System Info")
         feat_lay.addWidget(self.cfg_dump, 0, 0); feat_lay.addWidget(self.sd_list, 0, 1); feat_lay.addWidget(self.info_btn, 1, 0)
         
@@ -343,7 +345,7 @@ class CNCControlUI:
         # TERMINAL (Bottom Full Width)
         term_card = self.create_card(_("CONSOLE"))
         self.main_lay.addWidget(term_card, 1)
-        term_lay = QtWidgets.QVBoxLayout(term_card.layout())
+        term_lay = term_card.layout()
         self.console = FCTextArea(); self.console.setReadOnly(True); self.console.setStyleSheet("background: #222; color: #eee; font-family: 'Consolas'; border-radius: 4px;")
         term_lay.addWidget(self.console)
         
