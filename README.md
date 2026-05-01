@@ -14,6 +14,7 @@ Based on [FlatCAM](http://flatcam.org/) (c) 2014-2018 Juan Pablo Caram.
 *   **Enhanced Rendering:** High-precision buffering (1e-6) and stable geometry unions for reliable Gerber visualization.
 *   **Resilient Plugin System:** Safe import mechanisms prevent crashes due to missing third-party dependencies.
 *   **Modern Stack:** Updated for **Python 3.11+** and **PyQt6**, ensuring long-term maintainability.
+*   **Topbar CNC Connection Workflow:** The CNC connection status is now available directly from the topbar. When disconnected it appears as **Connect**, opening a modal with mode, controller, COM/TCP/HTTP parameters, **Test Connection**, and **Connect** actions. After connecting it changes to **Connected** and the same modal shows connection details plus a **Disconnect** action.
 
 ---
 

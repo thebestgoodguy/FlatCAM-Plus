@@ -460,6 +460,7 @@ class ToolCNCControl(AppTool):
     clear_sd_files_sig = pyqtSignal()
     controller_info_sig = pyqtSignal(dict)
     busy_sig = pyqtSignal(bool, str)
+    test_connection_sig = pyqtSignal(bool, str)
 
     def __init__(self, app):
         self.app = app
@@ -488,6 +489,8 @@ class ToolCNCControl(AppTool):
         self.active_profile_key = self.ui.profile_combo.currentData() or "fluidnc"
         self.connect_signals_at_init()
         self.ui.set_connected(False)
+        self.register_toolbar_connection_handler()
+        self.update_toolbar_connection_status(False, "")
 
     def run(self, toggle=True):
         tab_exists = False
@@ -509,6 +512,9 @@ class ToolCNCControl(AppTool):
 
     def connect_signals_at_init(self):
         self.ui.connect_btn.clicked.connect(self.on_connect_clicked)
+        self.ui.test_connection_btn.clicked.connect(self.on_test_connection_clicked)
+        self.ui.disconnect_btn.clicked.connect(self.disconnect)
+        self.ui.open_connection_btn.clicked.connect(self.on_toolbar_connection_clicked)
         self.ui.com_refresh.clicked.connect(self.on_refresh_ports)
         self.ui.connection_mode_combo.currentIndexChanged.connect(self.ui.on_connection_mode_changed)
         self.ui.profile_combo.currentIndexChanged.connect(self.on_profile_changed)
@@ -572,6 +578,7 @@ class ToolCNCControl(AppTool):
         self.clear_sd_files_sig.connect(self.ui.clear_sd_files)
         self.controller_info_sig.connect(self.ui.update_controller_info)
         self.busy_sig.connect(self.ui.set_busy)
+        self.test_connection_sig.connect(self.on_test_connection_finished)
 
     def update_tool_list(self):
         self.ui.object_combo.clear()
@@ -594,6 +601,20 @@ class ToolCNCControl(AppTool):
     def current_profile_key(self):
         return self.active_profile_key
 
+    def update_toolbar_connection_status(self, connected=False, description="", state=None):
+        updater = getattr(getattr(self.app, "ui", None), "update_cnc_toolbar_status", None)
+        if callable(updater):
+            updater(connected, description or "", state=state)
+
+    def register_toolbar_connection_handler(self):
+        setter = getattr(getattr(self.app, "ui", None), "set_cnc_toolbar_connection_handler", None)
+        if callable(setter):
+            setter(self.on_toolbar_connection_clicked)
+
+    def on_toolbar_connection_clicked(self):
+        self.on_refresh_ports()
+        self.ui.show_connection_dialog(self.is_connected)
+
     def on_profile_changed(self):
         self.active_profile_key = self.ui.profile_combo.currentData() or "fluidnc"
 
@@ -609,23 +630,34 @@ class ToolCNCControl(AppTool):
             return
 
         config = self.ui.connection_config()
-        if config["mode"] == "serial" and config["port"] == "None":
-            self.append_console_sig.emit(_("No COM port selected."), "error")
+        message = self.validate_connection_config(config)
+        if message:
+            self.append_console_sig.emit(message, "error")
             return
 
-        self.ui.connect_btn.setEnabled(False)
+        self.ui.set_connection_actions_enabled(False)
         self.append_console_sig.emit(_("Connecting..."), "info")
         threading.Thread(target=self._connect_worker, args=(config,), daemon=True).start()
 
+    def validate_connection_config(self, config):
+        if config["mode"] == "serial" and config["port"] == "None":
+            return _("No COM port selected.")
+        if config["mode"] == "tcp" and not config["host"]:
+            return _("No host selected.")
+        if config["mode"] == "http" and not config["web_url"]:
+            return _("No URL selected.")
+        return ""
+
+    def build_transport(self, config):
+        if config["mode"] == "serial":
+            return SerialTransport(config["port"], config["baudrate"])
+        if config["mode"] == "tcp":
+            return TcpTransport(config["host"], config["tcp_port"])
+        return HttpTransport(config["web_url"], config["user"], config["password"])
+
     def _connect_worker(self, config):
         try:
-            if config["mode"] == "serial":
-                transport = SerialTransport(config["port"], config["baudrate"])
-            elif config["mode"] == "tcp":
-                transport = TcpTransport(config["host"], config["tcp_port"])
-            else:
-                transport = HttpTransport(config["web_url"], config["user"], config["password"])
-
+            transport = self.build_transport(config)
             transport.open()
             with self.io_lock:
                 self.transport = transport
@@ -646,8 +678,9 @@ class ToolCNCControl(AppTool):
             self.connection_state_sig.emit(False, "")
 
     def on_connection_state_changed(self, connected, description):
-        self.ui.connect_btn.setEnabled(True)
+        self.ui.set_connection_actions_enabled(True)
         self.ui.set_connected(connected)
+        self.update_toolbar_connection_status(connected, description)
         if connected:
             self.append_console_sig.emit(f"{_('Connected')}: {description}", "info")
             self.ui.connection_desc.setText(description)
@@ -656,6 +689,55 @@ class ToolCNCControl(AppTool):
         else:
             self.ui.connection_desc.setText(_("Offline"))
             self.append_console_sig.emit(_("Disconnected"), "info")
+        self.ui.sync_connection_dialog(connected)
+
+    def on_test_connection_clicked(self):
+        if self.is_connected:
+            self.append_console_sig.emit(_("Already connected."), "info")
+            return
+
+        config = self.ui.connection_config()
+        message = self.validate_connection_config(config)
+        if message:
+            self.append_console_sig.emit(message, "error")
+            return
+
+        self.ui.set_connection_actions_enabled(False)
+        self.append_console_sig.emit(_("Testing connection..."), "info")
+        threading.Thread(target=self._test_connection_worker, args=(config,), daemon=True).start()
+
+    def _test_connection_worker(self, config):
+        transport = None
+        try:
+            transport = self.build_transport(config)
+            transport.open()
+            self.test_connection_sig.emit(True, transport.description())
+        except Exception as e:
+            log.error("CNC test connection error: %s", e)
+            self.test_connection_sig.emit(False, str(e))
+        finally:
+            if transport:
+                try:
+                    transport.close()
+                except Exception:
+                    pass
+
+    def on_test_connection_finished(self, success, message):
+        self.ui.set_connection_actions_enabled(True)
+        if success:
+            text = f"{_('Connection test succeeded')}: {message}"
+            self.append_console_sig.emit(text, "info")
+            try:
+                self.app.inform.emit('[success] %s' % text)
+            except Exception:
+                pass
+        else:
+            text = f"{_('Connection test failed')}: {message}"
+            self.append_console_sig.emit(text, "error")
+            try:
+                self.app.inform.emit('[ERROR_NOTCL] %s' % text)
+            except Exception:
+                pass
 
     def disconnect(self):
         self.stop_thread.set()
@@ -934,6 +1016,7 @@ class ToolCNCControl(AppTool):
     def update_status_display(self, data):
         state = data.get("state", "Idle")
         self.ui.state_label.setText(state.upper())
+        self.update_toolbar_connection_status(True, self.ui.connection_desc.text(), state=state)
 
         colors = {
             "Idle": "#5cb85c",
@@ -1188,7 +1271,8 @@ class CNCControlUI:
         self.main_lay.setContentsMargins(8, 8, 8, 8)
         self.main_lay.setSpacing(8)
 
-        self.build_connection_panel()
+        self.build_connection_dialog()
+        self.build_work_header()
         self.build_tabs()
         self.on_connection_mode_changed()
 
@@ -1224,6 +1308,11 @@ class CNCControlUI:
             }}
             QFrame#cnc_strip {{
                 background: {hover};
+                border: 1px solid {mid};
+                border-radius: 5px;
+            }}
+            QFrame#cnc_field_cell {{
+                background: {base};
                 border: 1px solid {mid};
                 border-radius: 5px;
             }}
@@ -1408,6 +1497,16 @@ class CNCControlUI:
         label.setObjectName("cnc_field_label")
         return label
 
+    def field_cell(self, label_text, widget):
+        frame = QtWidgets.QFrame()
+        frame.setObjectName("cnc_field_cell")
+        lay = QtWidgets.QVBoxLayout(frame)
+        lay.setContentsMargins(6, 4, 6, 6)
+        lay.setSpacing(3)
+        lay.addWidget(self.field_label(label_text))
+        lay.addWidget(widget)
+        return frame
+
     def help_button(self, tooltip):
         button = QtWidgets.QToolButton()
         button.setObjectName("cnc_help_button")
@@ -1430,25 +1529,117 @@ class CNCControlUI:
         lay.addWidget(self.help_button(tooltip))
         return frame
 
-    def build_connection_panel(self):
-        panel, body = self.create_panel(_("Connection"))
+    def build_work_header(self):
+        header = QtWidgets.QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(8)
+        self.main_lay.addLayout(header)
+
+        connection_panel = self.build_connection_panel()
+        connection_panel.setMinimumWidth(260)
+        connection_panel.setMaximumWidth(340)
+        connection_panel.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Preferred)
+        header.addWidget(connection_panel, 0, Qt.AlignmentFlag.AlignTop)
+
+        job_col = QtWidgets.QVBoxLayout()
+        job_col.setContentsMargins(0, 0, 0, 0)
+        job_col.setSpacing(8)
+        header.addLayout(job_col, 1)
+
+        direct_panel, direct_body = self.create_panel(_("Direct G-code Send"))
+        self.build_direct_job(direct_body)
+        job_col.addWidget(direct_panel)
+
+        sd_panel, sd_body = self.create_panel(_("Optional SD Job"))
+        self.build_sd_job(sd_body)
+        job_col.addWidget(sd_panel)
+        job_col.addStretch()
+
+    def build_connection_dialog(self):
+        self.connection_dialog = QtWidgets.QDialog(self.app.ui)
+        self.connection_dialog.setWindowTitle(_("Connection"))
+        self.connection_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        self.connection_dialog.setMinimumWidth(520)
+        self.connection_dialog.setStyleSheet(self.stylesheet())
+
+        dialog_lay = QtWidgets.QVBoxLayout(self.connection_dialog)
+        dialog_lay.setContentsMargins(10, 10, 10, 10)
+        dialog_lay.setSpacing(8)
+
+        self.dialog_status_frame = QtWidgets.QFrame()
+        self.dialog_status_frame.setObjectName("cnc_strip")
+        dialog_status_lay = QtWidgets.QVBoxLayout(self.dialog_status_frame)
+        dialog_status_lay.setContentsMargins(8, 6, 8, 6)
+        dialog_status_lay.setSpacing(3)
+
+        self.dialog_state_label = FCLabel(_("Connect"), bold=True)
+        self.dialog_connection_desc = FCLabel("", color="#777777")
+        dialog_status_lay.addWidget(self.dialog_state_label)
+        dialog_status_lay.addWidget(self.dialog_connection_desc)
+        dialog_lay.addWidget(self.dialog_status_frame)
+
+        self.connection_fields_widget = QtWidgets.QWidget()
+        fields_lay = QtWidgets.QVBoxLayout(self.connection_fields_widget)
+        fields_lay.setContentsMargins(0, 0, 0, 0)
+        fields_lay.setSpacing(8)
 
         self.connection_mode_combo = FCComboBox()
         self.setup_input(self.connection_mode_combo)
-        self.connection_mode_combo.setFixedWidth(165)
+        self.connection_mode_combo.setMinimumWidth(185)
         self.connection_mode_combo.addItem(_("COM / USB"), "serial")
         self.connection_mode_combo.addItem(_("WiFi TCP/Telnet"), "tcp")
         self.connection_mode_combo.addItem(_("FluidNC Web"), "http")
 
         self.profile_combo = FCComboBox()
         self.setup_input(self.profile_combo)
-        self.profile_combo.setFixedWidth(185)
+        self.profile_combo.setMinimumWidth(185)
         for key, profile in CNC_PROFILES.items():
             self.profile_combo.addItem(profile["label"], key)
 
-        self.connect_btn = FluidStyleButton(_("CONNECT"), "#337ab7", "#286090")
-        self.setup_button(self.connect_btn, "link32.png", _("Connect or disconnect the CNC controller."))
-        self.connect_btn.setFixedWidth(112)
+        selector_lay = QtWidgets.QGridLayout()
+        selector_lay.setHorizontalSpacing(8)
+        selector_lay.setVerticalSpacing(5)
+        selector_lay.addWidget(self.field_label(_("Mode")), 0, 0)
+        selector_lay.addWidget(self.connection_mode_combo, 0, 1)
+        selector_lay.addWidget(self.field_label(_("Controller")), 0, 2)
+        selector_lay.addWidget(self.profile_combo, 0, 3)
+        selector_lay.setColumnStretch(1, 1)
+        selector_lay.setColumnStretch(3, 1)
+        fields_lay.addLayout(selector_lay)
+
+        self.connection_stack = QtWidgets.QStackedWidget()
+        fields_lay.addWidget(self.connection_stack)
+        dialog_lay.addWidget(self.connection_fields_widget)
+
+        self.connect_btn = FluidStyleButton(_("Connect"), "#337ab7", "#286090")
+        self.setup_button(self.connect_btn, "link32.png", _("Connect to the CNC controller."))
+        self.test_connection_btn = FluidStyleButton(_("Test Connection"), "#5bc0de", "#31b0d5")
+        self.setup_button(self.test_connection_btn, "replot16.png", _("Test the selected connection."))
+        self.disconnect_btn = FluidStyleButton(_("Disconnect"), "#d9534f", "#c9302c")
+        self.setup_button(self.disconnect_btn, "power16.png", _("Disconnect the CNC controller."))
+        self.com_refresh = FluidStyleButton(_("Refresh"), "#5bc0de", "#31b0d5")
+        self.setup_button(self.com_refresh, "replot16.png", _("Refresh COM ports."))
+        self.close_connection_btn = FluidStyleButton(_("Close"), "#777777", "#666666")
+        self.setup_button(self.close_connection_btn, None, _("Close this window."))
+        self.close_connection_btn.clicked.connect(self.connection_dialog.hide)
+
+        action_lay = QtWidgets.QHBoxLayout()
+        action_lay.setSpacing(6)
+        action_lay.addWidget(self.com_refresh)
+        action_lay.addStretch()
+        action_lay.addWidget(self.test_connection_btn)
+        action_lay.addWidget(self.connect_btn)
+        action_lay.addWidget(self.disconnect_btn)
+        action_lay.addWidget(self.close_connection_btn)
+        dialog_lay.addLayout(action_lay)
+
+        self.build_serial_connection_page()
+        self.build_tcp_connection_page()
+        self.build_http_connection_page()
+
+    def build_connection_panel(self):
+        panel, body = self.create_panel(_("Connection"))
+
         self.state_indicator = QtWidgets.QFrame()
         self.state_indicator.setFixedSize(12, 12)
         self.state_indicator.setStyleSheet("background-color: #999999; border-radius: 6px;")
@@ -1456,117 +1647,166 @@ class CNCControlUI:
         self.connection_desc = FCLabel(_("Offline"), color="#777777")
         self.controller_info_label = FCLabel("", color="#777777")
 
-        top_frame = QtWidgets.QFrame()
-        top_frame.setObjectName("cnc_strip")
-        top = QtWidgets.QHBoxLayout(top_frame)
-        top.setContentsMargins(8, 6, 8, 6)
-        top.setSpacing(8)
-        top.addWidget(self.field_label(_("Mode")))
-        top.addWidget(self.connection_mode_combo)
-        top.addSpacing(8)
-        top.addWidget(self.field_label(_("Controller")))
-        top.addWidget(self.profile_combo)
-        top.addWidget(self.connect_btn)
-
-        status_frame = QtWidgets.QFrame()
-        status_frame.setObjectName("cnc_status_pill")
-        status_lay = QtWidgets.QHBoxLayout(status_frame)
-        status_lay.setContentsMargins(8, 3, 8, 3)
+        self.status_frame = QtWidgets.QFrame()
+        self.status_frame.setObjectName("cnc_status_pill")
+        status_lay = QtWidgets.QHBoxLayout(self.status_frame)
+        status_lay.setContentsMargins(8, 5, 8, 5)
         status_lay.setSpacing(5)
         status_lay.addWidget(self.state_indicator)
         status_lay.addWidget(self.state_label)
         status_lay.addWidget(self.connection_desc)
         status_lay.addWidget(self.controller_info_label, 1)
-        top.addWidget(status_frame, 1)
-        body.addWidget(top_frame)
 
-        connection_detail = QtWidgets.QFrame()
-        connection_detail.setObjectName("cnc_strip")
-        connection_detail_lay = QtWidgets.QVBoxLayout(connection_detail)
-        connection_detail_lay.setContentsMargins(8, 6, 8, 6)
-        connection_detail_lay.setSpacing(0)
+        self.open_connection_btn = FluidStyleButton(_("Connect"), "#337ab7", "#286090")
+        self.setup_button(self.open_connection_btn, "link32.png", _("Open CNC connection."))
+        self.open_connection_btn.setMinimumHeight(34)
 
-        self.connection_stack = QtWidgets.QStackedWidget()
-        connection_detail_lay.addWidget(self.connection_stack)
-        body.addWidget(connection_detail)
-        self.build_serial_connection_page()
-        self.build_tcp_connection_page()
-        self.build_http_connection_page()
+        body.addWidget(self.status_frame)
+        body.addWidget(self.open_connection_btn)
 
-        self.main_lay.addWidget(panel)
+        return panel
+
+    def show_connection_dialog(self, connected=False):
+        self.sync_connection_dialog(connected)
+        self.connection_dialog.show()
+        self.connection_dialog.raise_()
+        self.connection_dialog.activateWindow()
+
+    def sync_connection_dialog(self, connected=False):
+        description = self.connection_desc.text().strip() if hasattr(self, "connection_desc") else ""
+        controller = self.controller_info_label.text().strip() if hasattr(self, "controller_info_label") else ""
+        mode = self.connection_mode_combo.currentText()
+        profile = self.profile_combo.currentText()
+
+        if connected:
+            self.dialog_state_label.setText(_("Connected"))
+            info = description or _("Connected")
+            details = [info, mode, profile]
+            if controller:
+                details.append(controller)
+            self.dialog_connection_desc.setText(" | ".join(details))
+        else:
+            self.dialog_state_label.setText(_("Connect"))
+            self.dialog_connection_desc.setText("%s | %s" % (mode, profile))
+
+        self.connection_fields_widget.setEnabled(not connected)
+        self.connect_btn.setVisible(not connected)
+        self.test_connection_btn.setVisible(not connected)
+        self.disconnect_btn.setVisible(connected)
+        self.com_refresh.setEnabled(not connected and self.connection_mode_combo.currentData() == "serial")
+        self.open_connection_btn.setText(_("Connected") if connected else _("Connect"))
+
+    def set_connection_actions_enabled(self, enabled):
+        self.connect_btn.setEnabled(enabled)
+        self.test_connection_btn.setEnabled(enabled)
+        self.disconnect_btn.setEnabled(enabled)
+        self.open_connection_btn.setEnabled(enabled)
+        self.com_refresh.setEnabled(enabled and self.connection_mode_combo.currentData() == "serial")
 
     def build_serial_connection_page(self):
         page = QtWidgets.QWidget()
-        lay = QtWidgets.QHBoxLayout(page)
+        lay = QtWidgets.QVBoxLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(8)
+        lay.setSpacing(6)
 
         self.com_port = FCComboBox()
         self.setup_input(self.com_port)
-        self.com_port.setMinimumWidth(260)
+        self.com_port.setFixedWidth(360)
         self.com_port.setEditable(True)
-        self.com_refresh = FluidStyleButton(_("Refresh"), "#5bc0de", "#31b0d5")
-        self.setup_button(self.com_refresh, "replot16.png", _("Refresh COM ports."))
         self.baudrate_combo = FCComboBox()
         self.setup_input(self.baudrate_combo)
+        self.baudrate_combo.setFixedWidth(360)
         for baud in ["115200", "250000", "230400", "57600", "38400", "19200", "9600"]:
             self.baudrate_combo.addItem(baud)
+        self.baudrate_combo.setCurrentText("115200")
 
-        lay.addWidget(self.field_label(_("Port")))
-        lay.addWidget(self.com_port, 1)
-        lay.addWidget(self.com_refresh)
-        lay.addWidget(self.field_label(_("Baud")))
-        lay.addWidget(self.baudrate_combo)
+        port_lay = QtWidgets.QHBoxLayout()
+        port_lay.setSpacing(8)
+        port_lay.addWidget(self.field_label(_("Port")))
+        port_lay.addWidget(self.com_port)
+        port_lay.addStretch()
+
+        baud_lay = QtWidgets.QHBoxLayout()
+        baud_lay.setSpacing(8)
+        baud_lay.addWidget(self.field_label(_("Baud")))
+        baud_lay.addWidget(self.baudrate_combo)
+        baud_lay.addStretch()
+
+        lay.addLayout(port_lay)
+        lay.addLayout(baud_lay)
         self.connection_stack.addWidget(page)
 
     def build_tcp_connection_page(self):
         page = QtWidgets.QWidget()
-        lay = QtWidgets.QHBoxLayout(page)
+        lay = QtWidgets.QVBoxLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(8)
+        lay.setSpacing(6)
 
         self.tcp_host = FCEntry()
         self.setup_input(self.tcp_host)
-        self.tcp_host.setMinimumWidth(220)
+        self.tcp_host.setFixedWidth(360)
         self.tcp_host.setPlaceholderText("192.168.0.10")
         self.tcp_host.setText("fluidnc.local")
         self.tcp_port = FCSpinner()
         self.setup_input(self.tcp_port)
+        self.tcp_port.setFixedWidth(360)
         self.tcp_port.set_range(1, 65535)
         self.tcp_port.setValue(23)
 
-        lay.addWidget(self.field_label(_("Host")))
-        lay.addWidget(self.tcp_host, 1)
-        lay.addWidget(self.field_label(_("Port")))
-        lay.addWidget(self.tcp_port)
+        host_lay = QtWidgets.QHBoxLayout()
+        host_lay.setSpacing(8)
+        host_lay.addWidget(self.field_label(_("Host")))
+        host_lay.addWidget(self.tcp_host, 1)
+
+        port_lay = QtWidgets.QHBoxLayout()
+        port_lay.setSpacing(8)
+        port_lay.addWidget(self.field_label(_("Port")))
+        port_lay.addWidget(self.tcp_port)
+        port_lay.addStretch()
+
+        lay.addLayout(host_lay)
+        lay.addLayout(port_lay)
         self.connection_stack.addWidget(page)
 
     def build_http_connection_page(self):
         page = QtWidgets.QWidget()
-        lay = QtWidgets.QGridLayout(page)
+        lay = QtWidgets.QVBoxLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setHorizontalSpacing(8)
-        lay.setVerticalSpacing(6)
+        lay.setSpacing(6)
 
         self.web_url = FCEntry()
         self.setup_input(self.web_url)
-        self.web_url.setMinimumWidth(240)
+        self.web_url.setFixedWidth(360)
         self.web_url.setText("http://fluidnc.local")
         self.web_user = FCEntry()
         self.setup_input(self.web_user)
-        self.web_user.setMinimumWidth(120)
+        self.web_user.setFixedWidth(360)
         self.web_password = FCEntry()
         self.setup_input(self.web_password)
-        self.web_password.setMinimumWidth(120)
+        self.web_password.setFixedWidth(360)
         self.web_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
 
-        lay.addWidget(self.field_label(_("URL")), 0, 0)
-        lay.addWidget(self.web_url, 0, 1)
-        lay.addWidget(self.field_label(_("User")), 0, 2)
-        lay.addWidget(self.web_user, 0, 3)
-        lay.addWidget(self.field_label(_("Password")), 0, 4)
-        lay.addWidget(self.web_password, 0, 5)
-        lay.setColumnStretch(1, 1)
+        url_lay = QtWidgets.QHBoxLayout()
+        url_lay.setSpacing(8)
+        url_lay.addWidget(self.field_label(_("URL")))
+        url_lay.addWidget(self.web_url)
+        url_lay.addStretch()
+
+        auth_lay = QtWidgets.QHBoxLayout()
+        auth_lay.setSpacing(8)
+        auth_lay.addWidget(self.field_label(_("User")))
+        auth_lay.addWidget(self.web_user)
+        auth_lay.addStretch()
+
+        password_lay = QtWidgets.QHBoxLayout()
+        password_lay.setSpacing(8)
+        password_lay.addWidget(self.field_label(_("Password")))
+        password_lay.addWidget(self.web_password)
+        password_lay.addStretch()
+
+        lay.addLayout(url_lay)
+        lay.addLayout(auth_lay)
+        lay.addLayout(password_lay)
         self.connection_stack.addWidget(page)
 
     def build_tabs(self):
@@ -1597,16 +1837,8 @@ class CNCControlUI:
         grid.addWidget(system_panel, 0, 2)
         self.build_system(system_body)
 
-        direct_panel, direct_body = self.create_panel(_("Direct G-code Send"))
-        grid.addWidget(direct_panel, 1, 0, 1, 3)
-        self.build_direct_job(direct_body)
-
-        sd_panel, sd_body = self.create_panel(_("Optional SD Job"))
-        grid.addWidget(sd_panel, 2, 0, 1, 3)
-        self.build_sd_job(sd_body)
-
         terminal_panel, terminal_body = self.create_panel(_("Terminal Console"))
-        grid.addWidget(terminal_panel, 3, 0, 1, 3)
+        lay.addWidget(terminal_panel, 1)
         self.build_terminal_console(terminal_body)
 
         grid.setColumnStretch(0, 1)
@@ -1705,9 +1937,10 @@ class CNCControlUI:
 
         settings_lay.addWidget(self.field_label(_("Step")))
         settings_lay.addWidget(step_frame)
-        settings_lay.addStretch()
+        settings_lay.addSpacing(12)
         settings_lay.addWidget(self.field_label(_("Feed")))
         settings_lay.addWidget(self.jog_feed)
+        settings_lay.addStretch()
         body.addWidget(settings_frame)
 
         jog_wrap = QtWidgets.QHBoxLayout()
@@ -1979,7 +2212,7 @@ class CNCControlUI:
         self.console = QtWidgets.QTextEdit()
         self.console.setObjectName("cnc_console")
         self.console.setReadOnly(True)
-        self.console.setMinimumHeight(220)
+        self.console.setMinimumHeight(360)
         body.addWidget(self.console, 1)
 
         command_lay = QtWidgets.QHBoxLayout()
@@ -2022,17 +2255,20 @@ class CNCControlUI:
         self.connection_stack.setCurrentIndex(index)
 
         mode = self.connection_mode_combo.currentData()
+        self.com_refresh.setVisible(mode == "serial")
+        self.com_refresh.setEnabled(mode == "serial")
         if mode == "http":
             fluid_idx = self.profile_combo.findData("fluidnc")
             if fluid_idx >= 0:
                 self.profile_combo.setCurrentIndex(fluid_idx)
+        self.sync_connection_dialog(False)
         self.set_file_tools_enabled(True)
 
     def set_connected(self, connected):
-        self.connect_btn.setText(_("DISCONNECT") if connected else _("CONNECT"))
         self.state_label.setText("IDLE" if connected else "OFFLINE")
         if not connected:
             self.state_indicator.setStyleSheet("background-color: #999999; border-radius: 6px;")
+        self.sync_connection_dialog(connected)
 
         controls = [
             self.play_btn, self.pause_btn, self.stop_btn,
@@ -2121,6 +2357,7 @@ class CNCControlUI:
         target = info.get("FW target", "")
         details = " | ".join(value for value in [hostname, target] if value)
         self.controller_info_label.setText(details)
+        self.sync_connection_dialog(self.disconnect_btn.isVisible())
 
     def set_busy(self, busy, message):
         self.busy_label.setText(message if busy else "")
