@@ -274,22 +274,10 @@ class CNCControlUI:
         pos_lay = QtWidgets.QVBoxLayout(pos_frame)
         pos_lay.addWidget(FCLabel(_("POSITION"), color=self.accent, bold=True, size=9))
         
-        def add_pos_row(axis, color):
-            row = QtWidgets.QHBoxLayout()
-            l = FCLabel(axis); l.setFixedSize(20, 20); l.setStyleSheet(f"background: {color}; color: white; border-radius: 3px; font-weight: bold; font-size: 10pt;")
-            l.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            zero = FCButton("Ø"); zero.setFixedSize(22, 22); zero.setStyleSheet("background: #2a2a2a; color: #777; border: 1px solid #444; border-radius: 3px;")
-            val = FCLabel("0.000"); val.setStyleSheet(f"background: {self.bg_dark}; color: white; font-size: 16pt; font-family: 'Consolas'; border-radius: 4px; padding-right: 5px;")
-            val.setAlignment(Qt.AlignmentFlag.AlignRight)
-            row.addWidget(l); row.addWidget(zero); row.addWidget(val)
-            return zero, val
-
-        self.zero_x, self.x_val = add_pos_row("X", "#c62828")
-        pos_lay.addLayout(self.zero_x.parentLayout()) # Wait, custom logic needed
-        # Redoing Position layout for precision
+        # Position Grid
         pos_grid = GLay()
         def add_pos_grid(axis, color, r):
-            l = FCLabel(axis); l.setFixedSize(20, 20); l.setStyleSheet(f"background: {color}; color: white; border-radius: 3px; font-weight: bold; text-align: center;")
+            l = FCLabel(axis); l.setFixedSize(20, 20); l.setStyleSheet(f"background: {color}; color: white; border-radius: 3px; font-weight: bold;")
             l.setAlignment(Qt.AlignmentFlag.AlignCenter)
             z = FCButton("↺"); z.setFixedSize(24, 24); z.setStyleSheet("background: #2a2a2a; border-radius: 3px;")
             v = FCLabel("0.000"); v.setStyleSheet(f"background: #000; color: white; font-size: 18pt; font-family: 'Consolas'; border-radius: 3px; padding: 2px 10px;")
