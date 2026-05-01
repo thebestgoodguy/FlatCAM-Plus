@@ -355,11 +355,13 @@ class CNCControlUI:
         conn_lay = QtWidgets.QHBoxLayout(self.conn_group)
         
         self.com_port_combo = FCComboBox()
+        self.com_port_combo.setMinimumWidth(100)
         self.com_refresh_button = RotatedToolButton()
         self.com_refresh_button.setIcon(QtGui.QIcon(self.app.resource_location + '/reload32.png'))
         self.baud_rate_combo = FCComboBox()
         self.baud_rate_combo.addItems(["9600", "115200", "250000"])
         self.baud_rate_combo.set_value("115200")
+        self.baud_rate_combo.setMinimumWidth(80)
         self.connect_button = FCButton(_("Connect"))
         self.connect_button.setMinimumWidth(120)
         
@@ -498,8 +500,13 @@ class CNCControlUI:
         spin_group = QtWidgets.QGroupBox(_("Spindle"))
         right_col.addWidget(spin_group)
         spin_lay = GLay(spin_group)
-        self.spindle_speed_entry = FCSpinner(); self.spindle_speed_entry.set_range(0, 30000); self.spindle_speed_entry.set_value(10000)
-        spin_lay.addWidget(FCLabel(_("RPM:")), 0, 0); spin_lay.addWidget(self.spindle_speed_entry, 0, 1)
+        self.spindle_speed_entry = FCSpinner()
+        self.spindle_speed_entry.set_range(0, 30000)
+        self.spindle_speed_entry.set_value(10000)
+        self.spindle_speed_entry.setMaximumWidth(100)
+        spin_lay.addWidget(FCLabel(_("RPM:")), 0, 0)
+        spin_lay.addWidget(self.spindle_speed_entry, 0, 1)
+        spin_lay.addStretch(0, 2) # Prevent vertical stretch
         self.spindle_on = FCButton(_("M3 ON")); self.spindle_off = FCButton(_("M5 OFF"))
         spin_lay.addWidget(self.spindle_on, 1, 0); spin_lay.addWidget(self.spindle_off, 1, 1)
 
