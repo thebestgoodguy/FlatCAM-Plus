@@ -3363,11 +3363,17 @@ class App(QtCore.QObject):
                 self.prog_grid_lay.addWidget(FCLabel('%s' % "Juan Pablo Caram"), 1, 0)
                 self.prog_grid_lay.addWidget(FCLabel('%s' % _("FlatCAM Author")), 1, 1)
 
-                # FlatCAM EVO Author
+                # FlatCAM Plus Author
                 self.prog_grid_lay.addWidget(FCLabel('%s' % "Sadri ERCAN"), 2, 0)
                 self.prog_grid_lay.addWidget(FCLabel('%s' % _("FlatCAM Plus Author/Maintainer")), 2, 1)
                 self.prog_grid_lay.addWidget(FCLabel('%s' % ""), 2, 2)
-                self.prog_grid_lay.addWidget(FCLabel(''), 3, 0)
+                
+                # Historical attribution
+                self.prog_grid_lay.addWidget(FCLabel('%s' % "Marius Stanciu"), 3, 0)
+                self.prog_grid_lay.addWidget(FCLabel('%s' % _("Original Author (Evo/Plus Fork)")), 3, 1)
+                self.prog_grid_lay.addWidget(FCLabel('%s' % ""), 3, 2)
+                
+                self.prog_grid_lay.addWidget(FCLabel(''), 4, 0)
 
                 # randomize the order of the programmers at each launch
                 random.shuffle(programmers)
