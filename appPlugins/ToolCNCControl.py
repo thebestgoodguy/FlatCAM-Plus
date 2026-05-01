@@ -38,6 +38,7 @@ class ToolCNCControl(AppTool):
 
     update_status_sig = pyqtSignal(dict)
     append_console_sig = pyqtSignal(str, str)  # text, type (tx/rx)
+    update_progress_sig = pyqtSignal(float, str) # percent, remaining_time
 
     def __init__(self, app):
         self.app = app
@@ -52,15 +53,20 @@ class ToolCNCControl(AppTool):
         self.is_connected = False
         self.stop_thread = threading.Event()
         
-        self.send_queue = queue.Queue()
-        self.sender_thread = None
-        
         self.last_status_query = 0
         self.status_interval = 0.5  # seconds
         
         self.machine_state = "Disconnected"
         self.mpos = [0.0, 0.0, 0.0]
         self.wpos = [0.0, 0.0, 0.0]
+
+        # Streaming state
+        self.is_streaming = False
+        self.streaming_paused = False
+        self.gcode_lines = []
+        self.current_line_idx = 0
+        self.start_time = 0
+        self.ok_received = threading.Event()
 
         self.connect_signals_at_init()
 
@@ -79,6 +85,12 @@ class ToolCNCControl(AppTool):
         for port in ports:
             self.ui.com_port_combo.addItem(port.device)
         
+        # Populate CNC Objects
+        self.ui.object_combo.clear()
+        for obj in self.app.collection.get_list():
+            if obj.kind == 'cncjob':
+                self.ui.object_combo.addItem(obj.obj_options['name'])
+
         if not self.is_connected:
             self.ui.set_disconnected_ui()
         else:
@@ -92,6 +104,7 @@ class ToolCNCControl(AppTool):
         
         self.update_status_sig.connect(self.update_status_display)
         self.append_console_sig.connect(self.ui.append_console)
+        self.update_progress_sig.connect(self.update_progress_ui)
         
         # Jogging
         self.ui.jog_wdg.jog_up_button.clicked.connect(lambda: self.send_jog('Y', 1))
@@ -113,6 +126,11 @@ class ToolCNCControl(AppTool):
         self.ui.unlock_button.clicked.connect(lambda: self.send_command("$X"))
         self.ui.stop_button.clicked.connect(self.on_stop)
 
+        # Streaming
+        self.ui.stream_start_button.clicked.connect(self.on_stream_start)
+        self.ui.stream_pause_button.clicked.connect(self.on_stream_pause)
+        self.ui.stream_stop_button.clicked.connect(self.on_stream_stop)
+
     def on_refresh_ports(self):
         self.ui.com_port_combo.clear()
         ports = serial.tools.list_ports.comports()
@@ -124,6 +142,10 @@ class ToolCNCControl(AppTool):
             port = self.ui.com_port_combo.currentText()
             baud = int(self.ui.baud_rate_combo.currentText())
             
+            if not port:
+                self.app.inform.emit("[WARNING_NOTCL] No COM port selected.")
+                return
+
             try:
                 self.ser = serial.Serial(port, baud, timeout=0.1)
                 self.is_connected = True
@@ -144,6 +166,9 @@ class ToolCNCControl(AppTool):
             self.disconnect()
 
     def disconnect(self):
+        if self.is_streaming:
+            self.on_stream_stop()
+            
         self.stop_thread.set()
         if self.ser:
             self.ser.close()
@@ -175,23 +200,22 @@ class ToolCNCControl(AppTool):
         step = self.ui.jog_step_entry.get_value()
         feed = self.ui.jog_feed_entry.get_value()
         dist = step * direction
-        # GRBL Jogging command: $J=G91 G21 X... F...
         cmd = f"$J=G91 G21 {axis}{dist} F{feed}"
         self.send_command(cmd)
 
     def on_reset(self):
         if not self.is_connected or not self.ser:
             return
-        # Soft reset for GRBL is Ctrl+X (0x18)
         self.ser.write(b'\x18')
         self.ui.append_console("Soft Reset (0x18)", "tx")
 
     def on_stop(self):
         if not self.is_connected or not self.ser:
             return
-        # Feed hold is '!'
         self.ser.write(b'!')
         self.ui.append_console("Feed Hold (!)", "tx")
+        if self.is_streaming:
+            self.on_stream_pause()
 
     def receive_loop(self):
         while not self.stop_thread.is_set():
@@ -199,13 +223,19 @@ class ToolCNCControl(AppTool):
                 try:
                     line = self.ser.readline().decode().strip()
                     if line:
-                        self.append_console_sig.emit(line, "rx")
-                        self.parse_line(line)
+                        if line == "ok":
+                            self.ok_received.set()
+                        elif line.startswith("error:"):
+                            self.append_console_sig.emit(line, "error")
+                            self.ok_received.set() # Don't block streaming on error for now
+                        else:
+                            self.append_console_sig.emit(line, "rx")
+                            self.parse_line(line)
                 except Exception as e:
                     log.error(f"Receive error: {str(e)}")
                     break
             
-            # Periodically poll status
+            # Periodically poll status (only if not streaming or at low rate)
             now = time.time()
             if now - self.last_status_query > self.status_interval:
                 self.send_command("?")
@@ -214,7 +244,6 @@ class ToolCNCControl(AppTool):
             time.sleep(0.01)
 
     def parse_line(self, line):
-        # GRBL status line: <Idle|MPos:0.000,0.000,0.000|Bf:15,128|FS:0,0|WCO:0.000,0.000,0.000>
         if line.startswith("<") and line.endswith(">"):
             parts = line[1:-1].split("|")
             status_dict = {"state": parts[0]}
@@ -234,25 +263,107 @@ class ToolCNCControl(AppTool):
         self.machine_state = data.get("state", "Unknown")
         self.ui.status_label.setText(f"<b>{self.machine_state}</b>")
         
-        # Color status
         if self.machine_state == "Idle":
             self.ui.status_label.setStyleSheet("color: green;")
-        elif self.machine_state == "Alarm":
+        elif "Alarm" in self.machine_state:
             self.ui.status_label.setStyleSheet("color: red;")
-        elif self.machine_state == "Run":
+        elif "Run" in self.machine_state:
             self.ui.status_label.setStyleSheet("color: blue;")
         else:
             self.ui.status_label.setStyleSheet("color: orange;")
 
-        # Update position
         if "WPos" in data:
             self.wpos = [float(x) for x in data["WPos"].split(",")]
             self.ui.pos_label.setText(f"X: {self.wpos[0]:.3f} Y: {self.wpos[1]:.3f} Z: {self.wpos[2]:.3f}")
-        elif "MPos" in data:
-            # If only MPos is available, we might need WCO to calculate WPos
-            # For now just show MPos
-            mpos = [float(x) for x in data["MPos"].split(",")]
-            self.ui.pos_label.setText(f"MX: {mpos[0]:.3f} MY: {mpos[1]:.3f} MZ: {mpos[2]:.3f}")
+
+    # --- Streaming Logic ---
+    def on_stream_start(self):
+        if self.is_streaming:
+            if self.streaming_paused:
+                self.streaming_paused = False
+                self.ui.stream_pause_button.setText(_("Pause"))
+                self.ui.append_console(_("Streaming Resumed"), "info")
+                return
+            return
+
+        obj_name = self.ui.object_combo.currentText()
+        obj = self.app.collection.get_by_name(obj_name)
+        if not obj:
+            self.app.inform.emit("[WARNING_NOTCL] No CNC Job selected.")
+            return
+
+        gcode = obj.source_file
+        if not gcode:
+            self.app.inform.emit("[WARNING_NOTCL] CNC Job has no G-Code.")
+            return
+
+        self.gcode_lines = [line.strip() for line in gcode.split("\n") if line.strip() and not line.startswith("(")]
+        self.current_line_idx = 0
+        self.is_streaming = True
+        self.streaming_paused = False
+        self.start_time = time.time()
+        
+        self.ui.stream_start_button.setDisabled(True)
+        self.ui.stream_pause_button.setDisabled(False)
+        self.ui.stream_stop_button.setDisabled(False)
+        self.ui.append_console(_("Streaming Started") + f": {len(self.gcode_lines)} lines", "info")
+
+        threading.Thread(target=self.stream_loop, daemon=True).start()
+
+    def on_stream_pause(self):
+        if not self.is_streaming:
+            return
+        self.streaming_paused = not self.streaming_paused
+        self.ui.stream_pause_button.setText(_("Resume") if self.streaming_paused else _("Pause"))
+        self.ui.append_console(_("Streaming Paused") if self.streaming_paused else _("Streaming Resumed"), "info")
+
+    def on_stream_stop(self):
+        self.is_streaming = False
+        self.ui.stream_start_button.setDisabled(False)
+        self.ui.stream_pause_button.setDisabled(True)
+        self.ui.stream_stop_button.setDisabled(True)
+        self.ui.append_console(_("Streaming Stopped"), "info")
+        self.update_progress_sig.emit(0, "00:00")
+
+    def stream_loop(self):
+        while self.is_streaming and self.current_line_idx < len(self.gcode_lines):
+            if self.streaming_paused:
+                time.sleep(0.1)
+                continue
+
+            line = self.gcode_lines[self.current_line_idx]
+            self.ok_received.clear()
+            self.send_command(line)
+            
+            # Wait for 'ok' from GRBL
+            if not self.ok_received.wait(timeout=5.0):
+                self.append_console_sig.emit("Timeout waiting for 'ok'", "error")
+                # self.is_streaming = False
+                # break
+            
+            self.current_line_idx += 1
+            
+            # Update progress
+            progress = (self.current_line_idx / len(self.gcode_lines)) * 100
+            elapsed = time.time() - self.start_time
+            if progress > 0:
+                total_est = elapsed / (progress / 100.0)
+                remaining = total_est - elapsed
+                rem_str = time.strftime('%M:%S', time.gmtime(remaining))
+            else:
+                rem_str = "--:--"
+            
+            self.update_progress_sig.emit(progress, rem_str)
+
+        if self.current_line_idx >= len(self.gcode_lines):
+            self.append_console_sig.emit(_("Streaming Finished Successfully"), "info")
+            self.is_streaming = False
+            # Call back to UI thread to reset buttons
+            QtCore.QMetaObject.invokeMethod(self.ui.stream_start_button, "setEnabled", Qt.ConnectionType.QueuedConnection, QtCore.Q_ARG(bool, True))
+
+    def update_progress_ui(self, percent, remaining):
+        self.ui.progress_bar.setValue(int(percent))
+        self.ui.remaining_label.setText(f"{_('Remaining:')} {remaining}")
 
 
 class CNCControlUI:
@@ -347,6 +458,32 @@ class CNCControlUI:
         self.ctrl_layout.addWidget(self.reset_button, 1, 1)
         self.ctrl_layout.addWidget(self.stop_button, 2, 0, 1, 2)
 
+        # --- G-Code Sender Frame ---
+        self.stream_frame = FCFrame()
+        self.layout.addWidget(self.stream_frame)
+        self.stream_layout = GLay(self.stream_frame)
+
+        self.stream_title = FCLabel(f"<b>{_('G-Code Sender')}</b>")
+        self.stream_layout.addWidget(self.stream_title, 0, 0, 1, 2)
+
+        self.object_combo = FCComboBox()
+        self.stream_layout.addWidget(FCLabel(_("Job:")), 1, 0)
+        self.stream_layout.addWidget(self.object_combo, 1, 1)
+
+        self.stream_start_button = FCButton(_("Start Streaming"))
+        self.stream_pause_button = FCButton(_("Pause"))
+        self.stream_stop_button = FCButton(_("Stop"))
+        
+        self.stream_layout.addWidget(self.stream_start_button, 2, 0, 1, 2)
+        self.stream_layout.addWidget(self.stream_pause_button, 3, 0)
+        self.stream_layout.addWidget(self.stream_stop_button, 3, 1)
+
+        self.progress_bar = QtWidgets.QProgressBar()
+        self.stream_layout.addWidget(self.progress_bar, 4, 0, 1, 2)
+
+        self.remaining_label = FCLabel(_("Remaining: 00:00"))
+        self.stream_layout.addWidget(self.remaining_label, 5, 0, 1, 2)
+
         # --- Console ---
         self.console_frame = FCFrame()
         self.layout.addWidget(self.console_frame)
@@ -372,7 +509,7 @@ class CNCControlUI:
     def set_connected_ui(self):
         self.connect_button.setText(_("Disconnect"))
         self.connect_button.setStyleSheet("background-color: orange;")
-        self.conn_frame.setDisabled(False) # Keep it enabled to allow disconnect
+        self.conn_frame.setDisabled(False) 
         self.com_port_combo.setDisabled(True)
         self.baud_rate_combo.setDisabled(True)
         self.com_refresh_button.setDisabled(True)
@@ -380,7 +517,11 @@ class CNCControlUI:
         self.status_frame.setDisabled(False)
         self.jog_frame.setDisabled(False)
         self.ctrl_frame.setDisabled(False)
+        self.stream_frame.setDisabled(False)
         self.console_frame.setDisabled(False)
+        
+        self.stream_pause_button.setDisabled(True)
+        self.stream_stop_button.setDisabled(True)
 
     def set_disconnected_ui(self):
         self.connect_button.setText(_("Connect"))
@@ -392,6 +533,7 @@ class CNCControlUI:
         self.status_frame.setDisabled(True)
         self.jog_frame.setDisabled(True)
         self.ctrl_frame.setDisabled(True)
+        self.stream_frame.setDisabled(True)
         self.console_frame.setDisabled(True)
         
         self.status_label.setText("<b>Disconnected</b>")
@@ -415,5 +557,4 @@ class CNCControlUI:
             prefix = "i "
         
         self.console_output.appendHtml(f'<span style="color: {color};">{prefix}{text}</span>')
-        # Scroll to bottom
         self.console_output.moveCursor(QtGui.QTextCursor.MoveOperation.End)
