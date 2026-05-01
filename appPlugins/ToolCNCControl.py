@@ -413,8 +413,11 @@ class CNCControlUI:
         self.state_layout = QtWidgets.QVBoxLayout(self.state_frame)
         self.state_layout.setContentsMargins(5, 5, 5, 5)
         
-        self.state_layout.addWidget(FCLabel(f"<b>{_('Machine State')}</b>", alignment=Qt.AlignmentFlag.AlignCenter))
-        self.status_label = FCLabel("DISCONNECTED", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.state_title = FCLabel(f"<b>{_('Machine State')}</b>")
+        self.state_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.state_layout.addWidget(self.state_title)
+        self.status_label = FCLabel("DISCONNECTED")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet("background-color: #555; color: white; padding: 5px; border-radius: 4px; font-weight: bold;")
         self.state_layout.addWidget(self.status_label)
 
@@ -532,7 +535,8 @@ class CNCControlUI:
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.stream_layout.addWidget(self.progress_bar, 3, 0, 1, 2)
-        self.remaining_label = FCLabel(_("Remaining: 00:00"), alignment=Qt.AlignmentFlag.AlignCenter)
+        self.remaining_label = FCLabel(_("Remaining: 00:00"))
+        self.remaining_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.stream_layout.addWidget(self.remaining_label, 4, 0, 1, 2)
 
         # --- Console ---
