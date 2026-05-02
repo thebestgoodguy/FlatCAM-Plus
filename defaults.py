@@ -506,23 +506,7 @@ class AppDefaults:
         "tools_mill_optimization_type": 'R',
         "tools_mill_search_time": 3,
 
-        # Autolevelling Plugin
-        "tools_al_plot_points": False,
-        "tools_al_avoid_exc_holes": False,
-        "tools_al_avoid_exc_holes_size": 0.5,
-        "tools_al_status": False,
-        "tools_al_mode": 'grid',
-        "tools_al_method": 'v',
-        "tools_al_rows": 4,
-        "tools_al_columns": 4,
-        "tools_al_travel_z": 2.0,
-        "tools_al_probe_depth": -1.0,
-        "tools_al_probe_fr": 120,
-        "tools_al_probe_tip_dia": 0.3,
-        "tools_al_controller": 'MACH3',
-        "tools_al_grbl_jog_step": 5,
-        "tools_al_grbl_jog_fr": 1500,
-        "tools_al_grbl_travelz": 15.0,
+
 
         # NCC Plugin
         "tools_ncc_tools": "0.5",
@@ -680,31 +664,19 @@ class AppDefaults:
         "tools_solderpaste_preprocessor_list": ['default'],
         "tools_solderpaste_pp": 'Paste_1',
 
-        # Subtract Tool
-        "tools_sub_close_paths": True,
-        "tools_sub_delete_sources": False,
+
 
         # Distance Tool
         "tools_dist_snap_center": False,
         "tools_dist_big_cursor": True,
 
-        # Markers Tool
-        "tools_markers_thickness": 0.1,
-        "tools_markers_length": 3.0,
-        "tools_markers_reference": "e",     # from edge
-        "tools_markers_offset_x": 0.0,
-        "tools_markers_offset_y": 0.0,
-        "tools_markers_type": 's',
-        "tools_markers_drill_dia": 0.5,
-        "tools_markers_mode": 0,            # 'automatic'
-        "tools_markers_big_cursor": True,
+
 
         # ########################################################################################################
         # ################################ TOOLS 2 ###############################################################
         # ########################################################################################################
 
-        # Optimal Tool
-        "tools_opt_precision": 4,
+
 
         # Check Rules Tool
         "tools_cr_trace_size": True,
@@ -728,17 +700,7 @@ class AppDefaults:
         "tools_cr_dh": True,
         "tools_cr_dh_val": 0.3,
 
-        # QRCode Tool
-        "tools_qrcode_version": 1,
-        "tools_qrcode_error": 'L',
-        "tools_qrcode_box_size": 3,
-        "tools_qrcode_border_size": 4,
-        "tools_qrcode_qrdata": '',
-        "tools_qrcode_polarity": 'pos',
-        "tools_qrcode_rounded": 's',
-        "tools_qrcode_fill_color": '#000000',
-        "tools_qrcode_back_color": '#FFFFFF',
-        "tools_qrcode_sel_limit": 330,
+
 
         # Copper Thieving Tool
         "tools_copper_thieving_clearance": 0.25,
