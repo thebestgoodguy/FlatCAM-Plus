@@ -1,7 +1,7 @@
 # ##########################################################
 # FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # File Updated By Sadri ERCAN - 2026                        #
-# File by:  Antigravity (AI)                               #
+# File Author: Sadri ERCAN                                 #
 # Date:     05/01/2026                                     #
 # License:  MIT Licence                                    #
 # ##########################################################
