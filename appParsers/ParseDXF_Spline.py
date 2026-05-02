@@ -3,7 +3,7 @@
 # Date: 20-Oct-2015
 
 # ##########################################################
-# FlatCAM: 2D Post-processing for Manufacturing            #
+# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # File modified: Marius Adrian Stanciu                     #
 # Date: 3/10/2019                                          #
 # ##########################################################

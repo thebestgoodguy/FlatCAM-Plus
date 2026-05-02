@@ -1,5 +1,5 @@
 # ##########################################################
-# FlatCAM: 2D Post-processing for Manufacturing            #
+# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # File Modified: Marius Adrian Stanciu (c)                 #
 # Date: 3/10/2019                                          #
 # MIT Licence                                              #

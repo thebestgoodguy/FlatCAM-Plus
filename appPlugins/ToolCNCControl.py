@@ -1,5 +1,5 @@
 # ##########################################################
-# FlatCAM Plus: 2D Post-processing for Manufacturing        #
+# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # File by:  Antigravity (AI)                               #
 # Date:     05/01/2026                                     #
 # License:  MIT Licence                                    #

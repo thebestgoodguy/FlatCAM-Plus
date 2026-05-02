@@ -1,5 +1,5 @@
 # ##########################################################
-# FlatCAM: 2D Post-processing for Manufacturing            #
+# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # http://flatcam.org                                       #
 # File Author: Dennis Hayrullin                            #
 # Date: 2/5/2016                                           #

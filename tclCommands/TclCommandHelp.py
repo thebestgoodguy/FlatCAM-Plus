@@ -1,5 +1,5 @@
 # ##########################################################
-# FlatCAM Plus: 2D Post-processing for Manufacturing        #
+# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # File Updated By Sadri ERCAN - 2026                        #
 # File Author: Marius Adrian Stanciu (c)                   #
 # Content was borrowed from FlatCAM proper                 #

@@ -1,5 +1,5 @@
 # ########################################################## ##
-# FlatCAM: 2D Post-processing for Manufacturing            #
+# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # http://flatcam.org                                       #
 # File Author: Georg Ziegler                               #
 # Date: 1/16/2021                                          #
