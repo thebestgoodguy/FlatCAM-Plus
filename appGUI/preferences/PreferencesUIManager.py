@@ -402,20 +402,6 @@ class PreferencesUIManager(QtCore.QObject):
             "tools_mill_milling_overlap": self.ui.plugin_pref_form.tools_mill_group.overlap_entry,
             "tools_mill_milling_connect": self.ui.plugin_pref_form.tools_mill_group.connect_cb,
 
-            # Autolevelling Tool
-            "tools_al_avoid_exc_holes_size": self.ui.plugin_eng_pref_form.tools_level_group.avoid_exc_holes_size_entry,
-            "tools_al_mode":             self.ui.plugin_eng_pref_form.tools_level_group.al_mode_radio,
-            "tools_al_method":           self.ui.plugin_eng_pref_form.tools_level_group.al_method_radio,
-            "tools_al_rows":             self.ui.plugin_eng_pref_form.tools_level_group.al_rows_entry,
-            "tools_al_columns":          self.ui.plugin_eng_pref_form.tools_level_group.al_columns_entry,
-            "tools_al_travel_z":         self.ui.plugin_eng_pref_form.tools_level_group.ptravelz_entry,
-            "tools_al_probe_tip_dia":    self.ui.plugin_eng_pref_form.tools_level_group.probe_tip_dia_entry,
-            "tools_al_probe_depth":      self.ui.plugin_eng_pref_form.tools_level_group.pdepth_entry,
-            "tools_al_probe_fr":         self.ui.plugin_eng_pref_form.tools_level_group.feedrate_probe_entry,
-            "tools_al_controller":       self.ui.plugin_eng_pref_form.tools_level_group.al_controller_combo,
-            "tools_al_grbl_jog_step":    self.ui.plugin_eng_pref_form.tools_level_group.jog_step_entry,
-            "tools_al_grbl_jog_fr":      self.ui.plugin_eng_pref_form.tools_level_group.jog_fr_entry,
-            "tools_al_grbl_travelz":     self.ui.plugin_eng_pref_form.tools_level_group.jog_travelz_entry,
 
             # Drilling Tool
             "tools_drill_tool_order":   self.ui.plugin_pref_form.tools_drill_group.order_combo,
@@ -615,25 +601,12 @@ class PreferencesUIManager(QtCore.QObject):
             "tools_solderpaste_dwellrev": self.ui.plugin_pref_form.tools_solderpaste_group.dwellrev_entry,
             "tools_solderpaste_pp": self.ui.plugin_pref_form.tools_solderpaste_group.pp_combo,
 
-            # Subtractor Tool
-            "tools_sub_close_paths": self.ui.plugin_pref_form.tools_sub_group.close_paths_cb,
-            "tools_sub_delete_sources":  self.ui.plugin_pref_form.tools_sub_group.delete_sources_cb,
 
-            # Corner Markers Tool
-            "tools_markers_type": self.ui.plugin_pref_form.tools_markers_group.type_radio,
-            "tools_markers_thickness": self.ui.plugin_pref_form.tools_markers_group.thick_entry,
-            "tools_markers_length": self.ui.plugin_pref_form.tools_markers_group.l_entry,
-            "tools_markers_reference": self.ui.plugin_pref_form.tools_markers_group.ref_radio,
-            "tools_markers_offset_x": self.ui.plugin_pref_form.tools_markers_group.offset_x_entry,
-            "tools_markers_offset_y": self.ui.plugin_pref_form.tools_markers_group.offset_y_entry,
-            "tools_markers_drill_dia": self.ui.plugin_pref_form.tools_markers_group.drill_dia_entry,
 
             # #######################################################################################################
             # ########################################## PLUGINS 2 ##################################################
             # #######################################################################################################
 
-            # Optimal Tool
-            "tools_opt_precision": self.ui.plugin2_pref_form.tools2_optimal_group.precision_sp,
 
             # Check Rules Tool
             "tools_cr_trace_size": self.ui.plugin2_pref_form.tools2_checkrules_group.trace_size_cb,
@@ -657,17 +630,6 @@ class PreferencesUIManager(QtCore.QObject):
             "tools_cr_dh": self.ui.plugin2_pref_form.tools2_checkrules_group.drill_size_cb,
             "tools_cr_dh_val": self.ui.plugin2_pref_form.tools2_checkrules_group.drill_size_entry,
 
-            # QRCode Tool
-            "tools_qrcode_version": self.ui.plugin2_pref_form.tools2_qrcode_group.version_entry,
-            "tools_qrcode_error": self.ui.plugin2_pref_form.tools2_qrcode_group.error_radio,
-            "tools_qrcode_box_size": self.ui.plugin2_pref_form.tools2_qrcode_group.bsize_entry,
-            "tools_qrcode_border_size": self.ui.plugin2_pref_form.tools2_qrcode_group.border_size_entry,
-            "tools_qrcode_qrdata": self.ui.plugin2_pref_form.tools2_qrcode_group.text_data,
-            "tools_qrcode_polarity": self.ui.plugin2_pref_form.tools2_qrcode_group.pol_radio,
-            "tools_qrcode_rounded": self.ui.plugin2_pref_form.tools2_qrcode_group.bb_radio,
-            "tools_qrcode_fill_color": self.ui.plugin2_pref_form.tools2_qrcode_group.fill_color_entry,
-            "tools_qrcode_back_color": self.ui.plugin2_pref_form.tools2_qrcode_group.back_color_entry,
-            "tools_qrcode_sel_limit": self.ui.plugin2_pref_form.tools2_qrcode_group.sel_limit_entry,
 
             # Copper Thieving Tool
             "tools_copper_thieving_clearance": self.ui.plugin2_pref_form.tools2_cfill_group.clearance_entry,
