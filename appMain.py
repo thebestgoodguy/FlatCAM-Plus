@@ -1666,52 +1666,42 @@ class App(QtCore.QObject):
         self.calculator_tool = ToolCalculator(self)
         self.calculator_tool.install(icon=QtGui.QIcon(self.resource_location + '/calculator32.png'), separator=True)
 
-        self.sub_tool = ToolSub(self)
-        self.sub_tool.install(icon=QtGui.QIcon(self.resource_location + '/sub32.png'),
-                              pos=self.ui.menu_plugins, separator=True)
 
         self.rules_tool = RulesCheck(self)
         self.rules_tool.install(icon=QtGui.QIcon(self.resource_location + '/rules32.png'),
                                 pos=self.ui.menu_plugins, separator=False)
 
-        self.optimal_tool = ToolOptimal(self)
-        self.optimal_tool.install(icon=QtGui.QIcon(self.resource_location + '/open_excellon32.png'),
-                                  pos=self.ui.menu_plugins, separator=True)
 
         self.move_tool = ToolMove(self)
         self.move_tool.install(icon=QtGui.QIcon(self.resource_location + '/move16.png'), pos=self.ui.menuedit,
                                before=self.ui.menuedit_numeric_move, separator=True)
 
         self.cutout_tool = CutOut(self)
-        self.cutout_tool.install(icon=QtGui.QIcon(self.resource_location + '/cut32.png'), pos=self.ui.menu_plugins,
-                                 before=self.sub_tool.menuAction)
+        self.cutout_tool.install(icon=QtGui.QIcon(self.resource_location + '/cut32.png'), pos=self.ui.menu_plugins)
 
         self.ncclear_tool = NonCopperClear(self)
         self.ncclear_tool.install(icon=QtGui.QIcon(self.resource_location + '/ncc32.png'), pos=self.ui.menu_plugins,
-                                  before=self.sub_tool.menuAction, separator=True)
+                                  separator=True)
 
         self.paint_tool = ToolPaint(self)
         self.paint_tool.install(icon=QtGui.QIcon(self.resource_location + '/paint32.png'), pos=self.ui.menu_plugins,
-                                before=self.sub_tool.menuAction, separator=True)
+                                separator=True)
 
         self.isolation_tool = ToolIsolation(self)
         self.isolation_tool.install(icon=QtGui.QIcon(self.resource_location + '/iso_16.png'), pos=self.ui.menu_plugins,
-                                    before=self.sub_tool.menuAction, separator=True)
+                                    separator=True)
 
         self.follow_tool = ToolFollow(self)
         self.follow_tool.install(icon=QtGui.QIcon(self.resource_location + '/follow32.png'), pos=self.ui.menu_plugins,
-                                 before=self.sub_tool.menuAction, separator=True)
+                                 separator=True)
 
         self.drilling_tool = ToolDrilling(self)
         self.drilling_tool.install(icon=QtGui.QIcon(self.resource_location + '/extract_drill32.png'),
-                                   pos=self.ui.menu_plugins, before=self.sub_tool.menuAction, separator=True)
+                                   pos=self.ui.menu_plugins, separator=True)
         self.milling_tool = ToolMilling(self)
         self.milling_tool.install(icon=QtGui.QIcon(self.resource_location + '/milling_tool32.png'),
-                                  pos=self.ui.menu_plugins, before=self.sub_tool.menuAction, separator=True)
+                                  pos=self.ui.menu_plugins, separator=True)
 
-        self.levelling_tool = ToolLevelling(self)
-        self.levelling_tool.install(icon=QtGui.QIcon(self.resource_location + '/level32.png'),
-                                    pos=self.ui.menuoptions_experimental, separator=True)
 
         self.cnc_control_tool = ToolCNCControl(self)
         self.cnc_control_tool.install(icon=QtGui.QIcon(self.resource_location + '/cnc32.png'),
@@ -1725,9 +1715,6 @@ class App(QtCore.QObject):
         self.fiducial_tool.install(icon=QtGui.QIcon(self.resource_location + '/fiducials_32.png'),
                                    pos=self.ui.menu_plugins)
 
-        self.qrcode_tool = QRCode(self)
-        self.qrcode_tool.install(icon=QtGui.QIcon(self.resource_location + '/qrcode32.png'),
-                                 pos=self.ui.menu_plugins)
 
         self.punch_tool = ToolPunchGerber(self)
         self.punch_tool.install(icon=QtGui.QIcon(self.resource_location + '/punch32.png'), pos=self.ui.menu_plugins)
@@ -1735,9 +1722,6 @@ class App(QtCore.QObject):
         self.invert_tool = ToolInvertGerber(self)
         self.invert_tool.install(icon=QtGui.QIcon(self.resource_location + '/invert32.png'), pos=self.ui.menu_plugins)
 
-        self.markers_tool = ToolMarkers(self)
-        self.markers_tool.install(icon=QtGui.QIcon(self.resource_location + '/corners_32.png'),
-                                  pos=self.ui.menu_plugins)
 
         self.etch_tool = ToolEtchCompensation(self)
         self.etch_tool.install(icon=QtGui.QIcon(self.resource_location + '/etch_32.png'), pos=self.ui.menu_plugins)
@@ -1765,9 +1749,6 @@ class App(QtCore.QObject):
             self.log.error("Image Import plugin could not be started due of: %s" % str(im_err))
             self.image_tool = None
 
-        self.pcb_wizard_tool = PcbWizard(self)
-        self.pcb_wizard_tool.install(icon=QtGui.QIcon(self.resource_location + '/drill32.png'),
-                                     pos=self.ui.menufileimport)
 
         # create a list of plugins references
         self.app_plugins = [
@@ -1779,7 +1760,6 @@ class App(QtCore.QObject):
             self.paste_tool,
             self.calculator_tool,
             self.rules_tool,
-            self.sub_tool,
             self.move_tool,
 
             self.cutout_tool,
@@ -1789,23 +1769,18 @@ class App(QtCore.QObject):
             self.follow_tool,
             self.drilling_tool,
             self.milling_tool,
-            self.levelling_tool,
             self.cnc_control_tool,
 
-            self.optimal_tool,
             self.transform_tool,
             self.report_tool,
             self.pdf_tool,
             self.image_tool,
-            self.pcb_wizard_tool,
-            self.qrcode_tool,
             self.copper_thieving_tool,
             self.fiducial_tool,
             self.extract_tool,
             self.align_objects_tool,
             self.punch_tool,
             self.invert_tool,
-            self.markers_tool,
             self.etch_tool
         ]
 

@@ -1,9 +1,7 @@
 
 from PyQt6 import QtWidgets
 
-from appGUI.preferences.tools.ToolsSubPrefGroupUI import ToolsSubPrefGroupUI
 from appGUI.preferences.tools.ToolsSolderpastePrefGroupUI import ToolsSolderpastePrefGroupUI
-from appGUI.preferences.tools.ToolsMarkersPrefGroupUI import ToolsMarkersPrefGroupUI
 
 from appGUI.preferences.tools.ToolsTransformPrefGroupUI import ToolsTransformPrefGroupUI
 from appGUI.preferences.tools.ToolsCalculatorsPrefGroupUI import ToolsCalculatorsPrefGroupUI
@@ -60,11 +58,7 @@ class PluginsPreferencesUI(QtWidgets.QWidget):
         self.tools_solderpaste_group = ToolsSolderpastePrefGroupUI(app=app)
         self.tools_solderpaste_group.setMinimumWidth(250)
 
-        self.tools_markers_group = ToolsMarkersPrefGroupUI(app=app)
-        self.tools_markers_group.setMinimumWidth(250)
 
-        self.tools_sub_group = ToolsSubPrefGroupUI(app=app)
-        self.tools_sub_group.setMinimumWidth(250)
 
         self.vlay = QtWidgets.QVBoxLayout()
         self.vlay.addWidget(self.tools_drill_group)
@@ -82,9 +76,7 @@ class PluginsPreferencesUI(QtWidgets.QWidget):
 
         self.vlay4 = QtWidgets.QVBoxLayout()
         self.vlay4.addWidget(self.tools_solderpaste_group)
-        self.vlay4.addWidget(self.tools_markers_group)
         self.vlay4.addWidget(self.tools_calculators_group)
-        self.vlay4.addWidget(self.tools_sub_group)
 
         self.layout.addLayout(self.vlay)
         self.layout.addLayout(self.vlay1)

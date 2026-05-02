@@ -6,8 +6,6 @@ from appGUI.preferences.tools.Tools2PunchGerberPrefGroupUI import Tools2PunchGer
 from appGUI.preferences.tools.Tools2ExtractPrefGroupUI import Tools2EDrillsPrefGroupUI
 from appGUI.preferences.tools.Tools2FiducialsPrefGroupUI import Tools2FiducialsPrefGroupUI
 from appGUI.preferences.tools.Tools2CThievingPrefGroupUI import Tools2CThievingPrefGroupUI
-from appGUI.preferences.tools.Tools2QRCodePrefGroupUI import Tools2QRCodePrefGroupUI
-from appGUI.preferences.tools.Tools2OptimalPrefGroupUI import Tools2OptimalPrefGroupUI
 from appGUI.preferences.tools.Tools2RulesCheckPrefGroupUI import Tools2RulesCheckPrefGroupUI
 
 from appGUI.ColumnarFlowLayout import ColumnarFlowLayout
@@ -34,11 +32,7 @@ class Plugins2PreferencesUI(QtWidgets.QWidget):
         self.tools2_checkrules_group = Tools2RulesCheckPrefGroupUI(app=app)
         self.tools2_checkrules_group.setMinimumWidth(250)
 
-        self.tools2_optimal_group = Tools2OptimalPrefGroupUI(app=app)
-        self.tools2_optimal_group.setMinimumWidth(250)
 
-        self.tools2_qrcode_group = Tools2QRCodePrefGroupUI(app=app)
-        self.tools2_qrcode_group.setMinimumWidth(280)
 
         self.tools2_cfill_group = Tools2CThievingPrefGroupUI(app=app)
         self.tools2_cfill_group.setMinimumWidth(250)
@@ -57,10 +51,8 @@ class Plugins2PreferencesUI(QtWidgets.QWidget):
 
         self.vlay = QtWidgets.QVBoxLayout()
         self.vlay.addWidget(self.tools2_checkrules_group)
-        self.vlay.addWidget(self.tools2_optimal_group)
 
         self.vlay1 = QtWidgets.QVBoxLayout()
-        self.vlay1.addWidget(self.tools2_qrcode_group)
         self.vlay1.addWidget(self.tools2_fiducials_group)
 
         self.vlay2 = QtWidgets.QVBoxLayout()
