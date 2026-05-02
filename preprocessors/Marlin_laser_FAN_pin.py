@@ -1,6 +1,7 @@
 # ##########################################################
 # FlatCAM PLUS: 2D Post-processing for Manufacturing       #
 # Website:      http://flatcam.org                         #
+# File Updated By Sadri ERCAN - 2026                        #
 # File Author:  Marius Adrian Stanciu (c)                  #
 # Date:         8-Feb-2020                                 #
 # License:      MIT Licence                                #
