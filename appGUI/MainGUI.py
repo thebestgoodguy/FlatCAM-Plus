@@ -1,4 +1,4 @@
-﻿# ##########################################################
+# ##########################################################
 # FlatCAM: 2D Post-processing for Manufacturing            #
 # http://flatcam.org                                       #
 # Author: Juan Pablo Caram (c)                             #
@@ -85,6 +85,66 @@ class MainGUI(QtWidgets.QMainWindow):
                 return self.theme_safe_colors[color]
         else:
             return color
+
+    def add_cnc_toolbar_controls(self):
+        current_action = getattr(self, "cnc_toolbar_status_action", None)
+        if current_action is not None and current_action in self.toolbarplugins.actions():
+            return
+
+        self.cnc_toolbar_btn = self.toolbarplugins.addAction(
+            QtGui.QIcon(self.app.resource_location + '/cnc32.png'), _("CNC"))
+        self.cnc_toolbar_btn.setToolTip(_("Open CNC Controller."))
+
+        self.cnc_toolbar_status_action = self.toolbarplugins.addAction(
+            QtGui.QIcon(self.app.resource_location + '/link32.png'), _("Connect"))
+        self.cnc_toolbar_status_action.setToolTip(_("Open CNC connection."))
+
+        self.cnc_toolbar_connection_handler = None
+        self.update_cnc_toolbar_status(False, "")
+
+    def update_cnc_toolbar_status(self, connected, description="", state=None):
+        if not hasattr(self, "cnc_toolbar_status_action") or self.cnc_toolbar_status_action is None:
+            return
+
+        if connected:
+            icon = QtGui.QIcon(self.app.resource_location + '/link32.png')
+            text = _("Connected")
+            tooltip = _("CNC Connected: ") + description
+        else:
+            icon = QtGui.QIcon(self.app.resource_location + '/link32.png')
+            text = _("Disconnected")
+            tooltip = _("CNC Disconnected")
+
+        self.cnc_toolbar_status_action.setIcon(icon)
+        self.cnc_toolbar_status_action.setText(text)
+        self.cnc_toolbar_status_action.setToolTip(tooltip)
+
+        if hasattr(self, "cnc_toolbar_status_action_menu"):
+            self.cnc_toolbar_status_action_menu.setIcon(icon)
+            self.cnc_toolbar_status_action_menu.setText(text)
+
+    def set_cnc_toolbar_connection_handler(self, handler):
+        self.cnc_toolbar_connection_handler = handler
+        actions = []
+        if hasattr(self, "cnc_toolbar_status_action"):
+            actions.append(self.cnc_toolbar_status_action)
+        if hasattr(self, "cnc_toolbar_status_action_menu"):
+            actions.append(self.cnc_toolbar_status_action_menu)
+
+        for action in actions:
+            if action:
+                try:
+                    action.triggered.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                action.triggered.connect(handler)
+
+        if hasattr(self, "cnc_toolbar_btn") and self.cnc_toolbar_btn:
+            try:
+                self.cnc_toolbar_btn.triggered.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            self.cnc_toolbar_btn.triggered.connect(lambda: self.app.cnc_control_tool.run())
 
     # https://www.w3.org/TR/SVG11/types.html#ColorKeywords
     def __init__(self, app):
@@ -635,6 +695,19 @@ class MainGUI(QtWidgets.QMainWindow):
         self.menuobjects_unselall = self.menuobjects.addAction(
             QtGui.QIcon(self.app.resource_location + '/deselect_all32.png'),
             '%s\t%s' % (_('Deselect All'), ''))
+
+        # ########################################################################
+        # ########################## CNC # #######################################
+        # ########################################################################
+        self.menucnc = self.menu.addMenu(_('CNC'))
+        self.menucnc_control = self.menucnc.addAction(
+            QtGui.QIcon(self.app.resource_location + '/cnc32.png'), _('CNC Control'))
+        self.menucnc_control.triggered.connect(lambda: self.app.cnc_control_tool.run())
+
+        self.menucnc_connect = self.menucnc.addAction(
+            QtGui.QIcon(self.app.resource_location + '/link32.png'), _('Connect'))
+        # This will be connected via set_cnc_toolbar_connection_handler
+        self.cnc_toolbar_status_action_menu = self.menucnc_connect
 
         # ########################################################################
         # ########################## Plugins # ######################################
@@ -2151,6 +2224,8 @@ class MainGUI(QtWidgets.QMainWindow):
         self.plot_tab_area.tab_detached.connect(self.on_tab_detached)
 
         self.pref_tab_area.tabBar().tabBarClicked.connect(self.on_pref_tabbar_clicked)
+
+        self.add_cnc_toolbar_controls()
 
         # self.screenChanged.connect(self.on_screen_change)
 
