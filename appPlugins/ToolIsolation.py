@@ -225,7 +225,7 @@ class ToolIsolation(Gerber, AppTool):
             icon=QtGui.QIcon(self.app.resource_location + "/plus16.png")
         )
         self.ui.tools_table.addContextMenu(
-            _("Pick from DB"),
+            _("Select tool From DB"),
             self.on_tool_add_from_db_clicked,
             icon=QtGui.QIcon(self.app.resource_location + "/search_db32.png")
         )
@@ -480,7 +480,7 @@ class ToolIsolation(Gerber, AppTool):
                                         """)
 
             # Add Tool section
-            self.ui.add_tool_frame.hide()
+            self.ui.add_tool_frame.show()
 
             # Tool parameters section
             if self.iso_tools:
@@ -635,8 +635,11 @@ class ToolIsolation(Gerber, AppTool):
                 QtCore.Qt.ItemFlag.ItemIsEnabled)
 
         # all the tools are selected by default
-        self.ui.tools_table.selectColumn(0)
-        #
+        if self.ui.tools_table.rowCount() > 0:
+            # check if we already have a selection; if not select the first row
+            if not self.ui.tools_table.selectedItems():
+                self.ui.tools_table.selectRow(0)
+        
         self.ui.tools_table.resizeColumnsToContents()
         self.ui.tools_table.resizeRowsToContents()
 
@@ -940,13 +943,30 @@ class ToolIsolation(Gerber, AppTool):
 
     def storage_to_form(self, dict_storage):
         for form_key in self.form_fields:
+            # Try top-level keys
             for storage_key in dict_storage:
                 if form_key == storage_key:
                     try:
-                        self.form_fields[form_key].set_value(dict_storage[form_key])
+                        val = dict_storage[form_key]
+                        from appGUI.GUIElements import RadioSet
+                        if isinstance(self.form_fields[form_key], RadioSet) and (val == 0 or val == '0'):
+                            continue
+                        self.form_fields[form_key].set_value(val)
                     except Exception as e:
-                        self.app.log.error("ToolIsolation.storage_to_form() --> %s" % str(e))
-                        pass
+                        self.app.log.error("ToolIsolation.storage_to_form() top -> %s" % str(e))
+
+            # Try 'data' sub-dictionary
+            if 'data' in dict_storage:
+                for data_key in dict_storage['data']:
+                    if form_key == data_key:
+                        try:
+                            val = dict_storage['data'][data_key]
+                            from appGUI.GUIElements import RadioSet
+                            if isinstance(self.form_fields[form_key], RadioSet) and (val == 0 or val == '0'):
+                                continue
+                            self.form_fields[form_key].set_value(val)
+                        except Exception as e:
+                            self.app.log.error("ToolIsolation.storage_to_form() data -> %s" % str(e))
 
     def form_to_storage(self):
         if self.ui.tools_table.rowCount() == 0:
@@ -1783,6 +1803,15 @@ class ToolIsolation(Gerber, AppTool):
                     tools_storage[tool_iso][key]["tools_iso_area_shape"] = sel_area_shape
                     tools_storage[tool_iso][key]["tools_mill_job_type"] = 2  # _("Isolation")
                     tools_storage[tool_iso][key]["tools_mill_tool_shape"] = tool_tip_shape
+
+                    # Update parameters from UI that are common or visible
+                    tools_storage[tool_iso][key]["tools_mill_cutz"] = self.ui.cutz_entry.get_value()
+                    tools_storage[tool_iso][key]["tools_mill_vtipdia"] = self.ui.tipdia_entry.get_value()
+                    tools_storage[tool_iso][key]["tools_mill_vtipangle"] = self.ui.tipangle_entry.get_value()
+                    tools_storage[tool_iso][key]["tools_iso_passes"] = self.ui.passes_entry.get_value()
+                    tools_storage[tool_iso][key]["tools_iso_overlap"] = self.ui.iso_overlap_entry.get_value()
+                    tools_storage[tool_iso][key]["tools_iso_milling_type"] = self.ui.milling_type_radio.get_value()
+                    tools_storage[tool_iso][key]["tools_iso_isotype"] = self.ui.iso_type_radio.get_value()
 
         if use_combine:
             if use_rest:
@@ -2924,7 +2953,7 @@ class ToolIsolation(Gerber, AppTool):
         """
         tool_from_db = deepcopy(tool)
 
-        if tool['data']['tool_target'] not in [0, 3]:  # [General, Isolation]
+        if tool['data']['tool_target'] not in [0, 1, 3]:  # [General, Milling, Isolation]
             for idx in range(self.app.ui.plot_tab_area.count()):
                 if self.app.ui.plot_tab_area.tabText(idx) == _("Tools Database"):
                     wdg = self.app.ui.plot_tab_area.widget(idx)
@@ -2947,9 +2976,11 @@ class ToolIsolation(Gerber, AppTool):
 
         # select last tool added
         toolid = res
+        self.ui.tools_table.clearSelection()
         for row in range(self.ui.tools_table.rowCount()):
             if int(self.ui.tools_table.item(row, 3).text()) == toolid:
                 self.ui.tools_table.selectRow(row)
+                break
         self.on_row_selection_change()
 
     def on_tool_from_db_inserted(self, tool):
@@ -2999,11 +3030,13 @@ class ToolIsolation(Gerber, AppTool):
 
         # select the tool just added
         for row in range(self.ui.tools_table.rowCount()):
-            if int(self.ui.tools_table.item(row, 3).text()) == self.tooluid:
+            if int(self.ui.tools_table.item(row, 3).text()) == tooluid:
                 self.ui.tools_table.selectRow(row)
                 break
 
-        return True
+        self.ui_connect()
+        self.ui.tools_table.viewport().update()
+        return tooluid
         # if self.ui.tools_table.rowCount() != 0:
         #     self.param_frame.setDisabled(False)
 
@@ -3018,6 +3051,8 @@ class ToolIsolation(Gerber, AppTool):
         for idx in range(self.app.ui.plot_tab_area.count()):
             if self.app.ui.plot_tab_area.tabText(idx) == _("Tools Database"):
                 self.app.ui.plot_tab_area.setCurrentWidget(self.app.tools_db_tab)
+                # update the callback
+                self.app.tools_db_tab.on_tool_request = self.on_iso_tool_add_from_db_executed
                 break
         ret_val = self.app.on_tools_database(source='iso')
         if ret_val == 'fail':
@@ -3437,10 +3472,7 @@ class IsoUI:
         self.new_tooldia_entry.setObjectName("i_new_tooldia")
 
         # Find Optimal Tooldia
-        self.find_optimal_button = QtWidgets.QToolButton()
-        self.find_optimal_button.setText(_('Optimal'))
-        self.find_optimal_button.setIcon(QtGui.QIcon(self.app.resource_location + '/open_excellon32.png'))
-        self.find_optimal_button.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.find_optimal_button = FCButton(_('Optimal'))
         self.find_optimal_button.setToolTip(
             _("Find a tool diameter that is guaranteed\n"
               "to do a complete isolation.")
@@ -3456,7 +3488,6 @@ class IsoUI:
         new_tool_grid.addLayout(button_grid, 6, 0, 1, 3)
 
         self.search_and_add_btn = FCButton(_('Search and Add'))
-        self.search_and_add_btn.setIcon(QtGui.QIcon(self.app.resource_location + '/plus16.png'))
         self.search_and_add_btn.setToolTip(
             _("Add a new tool to the Tool Table\n"
               "with the diameter specified above.\n"
@@ -3467,8 +3498,7 @@ class IsoUI:
 
         button_grid.addWidget(self.search_and_add_btn, 0, 0)
 
-        self.addtool_from_db_btn = FCButton(_('Pick from DB'))
-        self.addtool_from_db_btn.setIcon(QtGui.QIcon(self.app.resource_location + '/search_db32.png'))
+        self.addtool_from_db_btn = FCButton(_('Select tool From DB'))
         self.addtool_from_db_btn.setToolTip(
             _("Add a new tool to the Tool Table\n"
               "from the Tools Database.\n"
@@ -3542,6 +3572,7 @@ class IsoUI:
             self.tool_shape_combo.setCurrentIndex(0)
         else:
             self.tool_shape_combo.setCurrentIndex(idx)
+
 
         tool_param_grid.addWidget(self.tool_shape_label, 0, 0)
         tool_param_grid.addWidget(self.tool_shape_combo, 0, 1)

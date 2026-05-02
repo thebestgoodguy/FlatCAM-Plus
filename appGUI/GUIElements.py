@@ -2716,9 +2716,13 @@ class FCComboBox2(FCComboBox):
 
     def set_value(self, val):
         try:
-            self.setCurrentIndex(val)
-        except TypeError:
-            self.setCurrentIndex(0)
+            self.setCurrentIndex(int(val))
+        except (TypeError, ValueError):
+            idx = self.findText(str(val))
+            if idx != -1:
+                self.setCurrentIndex(idx)
+            else:
+                self.setCurrentIndex(0)
 
 
 class DialogBoxChoice(QtWidgets.QDialog):

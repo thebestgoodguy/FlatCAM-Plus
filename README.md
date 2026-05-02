@@ -14,6 +14,11 @@ Based on [FlatCAM](http://flatcam.org/) (c) 2014-2018 Juan Pablo Caram.
 *   **Enhanced Rendering:** High-precision buffering (1e-6) and stable geometry unions for reliable Gerber visualization.
 *   **Resilient Plugin System:** Safe import mechanisms prevent crashes due to missing third-party dependencies.
 *   **Modern Stack:** Updated for **Python 3.11+** and **PyQt6**, ensuring long-term maintainability.
+*   **Isolation Tool Enhancements (New):**
+    *   **Direct Database Integration:** Seamlessly transfer tools from the Tools Database into the Isolation Tool with automatic parameter mapping.
+    *   **Dynamic Parameter Sync:** All milling settings (Cut Z, Feedrates, etc.) are synchronized from the UI to the tool data immediately before geometry generation, ensuring "combined" objects always use current settings.
+    *   **Intelligent V-Tool Support:** Fixed shape and tip-diameter persistence when loading tools from the database, enabling accurate isolation for V-shaped milling bits.
+    *   **Data Consistency:** Resolved "C1" shape reset issues and improved UI-to-storage data binding for all tool types.
 *   **CNC Connection and Control Page:** Added a complete CNC controller workflow with a topbar connection entry point, connection modal, live machine status, jogging, streaming, SD control, terminal commands, and FluidNC file management.
 
 ---

@@ -1678,18 +1678,25 @@ class ToolsDB2(QtWidgets.QWidget):
 
     def storage_to_form(self, dict_storage):
         self.ui_disconnect()
+        from appGUI.GUIElements import RadioSet
         for form_key in self.form_fields:
             for storage_key in dict_storage:
                 if form_key == storage_key:
                     try:
-                        self.form_fields[form_key].set_value(dict_storage[form_key])
+                        val = dict_storage[form_key]
+                        if isinstance(self.form_fields[form_key], RadioSet) and (val == 0 or val == '0'):
+                            continue
+                        self.form_fields[form_key].set_value(val)
                     except Exception as e:
                         print(str(e))
                 if storage_key == 'data':
                     for data_key in dict_storage[storage_key]:
                         if form_key == data_key:
                             try:
-                                self.form_fields[form_key].set_value(dict_storage['data'][data_key])
+                                val = dict_storage['data'][data_key]
+                                if isinstance(self.form_fields[form_key], RadioSet) and (val == 0 or val == '0'):
+                                    continue
+                                self.form_fields[form_key].set_value(val)
                             except Exception as e:
                                 print(str(e))
         self.ui_connect()
