@@ -1,5 +1,6 @@
 # ##########################################################
 # FlatCAM: 2D Post-processing for Manufacturing            #
+# File Updated By Sadri ERCAN - 2026                        #
 # File Author: Marius Adrian Stanciu (c)                   #
 # Date: 09/27/2019                                         #
 # MIT Licence                                              #
