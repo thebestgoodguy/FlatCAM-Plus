@@ -23,7 +23,7 @@ class GeneralAPPSetGroupUI(OptionsGroupUI):
         self.decimals = app.decimals
         self.options = app.options
 
-        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
         if theme_settings.contains("theme"):
             theme = theme_settings.value('theme', type=str)
         else:
@@ -213,7 +213,7 @@ class GeneralAPPSetGroupUI(OptionsGroupUI):
         self.notebook_font_size_spinner.set_range(8, 40)
         self.notebook_font_size_spinner.setWrapping(True)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("notebook_font_size"):
             self.notebook_font_size_spinner.set_value(q_settings.value('notebook_font_size', type=int))
         else:
@@ -232,7 +232,7 @@ class GeneralAPPSetGroupUI(OptionsGroupUI):
         self.axis_font_size_spinner.set_range(0, 40)
         self.axis_font_size_spinner.setWrapping(True)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("axis_font_size"):
             self.axis_font_size_spinner.set_value(q_settings.value('axis_font_size', type=int))
         else:
@@ -252,7 +252,7 @@ class GeneralAPPSetGroupUI(OptionsGroupUI):
         self.textbox_font_size_spinner.set_range(8, 40)
         self.textbox_font_size_spinner.setWrapping(True)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("textbox_font_size"):
             self.textbox_font_size_spinner.set_value(q_settings.value('textbox_font_size', type=int))
         else:
@@ -271,7 +271,7 @@ class GeneralAPPSetGroupUI(OptionsGroupUI):
         self.hud_font_size_spinner.set_range(8, 40)
         self.hud_font_size_spinner.setWrapping(True)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("hud_font_size"):
             self.hud_font_size_spinner.set_value(q_settings.value('hud_font_size', type=int))
         else:
@@ -493,7 +493,7 @@ class GeneralAPPSetGroupUI(OptionsGroupUI):
         if val:
             self.app.cursor_color_3D = self.app.options["global_cursor_color"]
         else:
-            theme_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+            theme_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
             if theme_settings.contains("theme"):
                 theme = theme_settings.value('theme', type=str)
             else:

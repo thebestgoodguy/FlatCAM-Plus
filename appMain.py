@@ -76,7 +76,6 @@ from appCommon.RegisterFileKeywords import RegisterFK, Extensions, KeyWords
 from appHandlers.appIO import appIO
 from appHandlers.appEdit import appEditor
 
-from Bookmark import BookmarkManager
 from appDatabase import ToolsDB2
 
 # App defaults (preferences)
@@ -202,7 +201,7 @@ class App(QtCore.QObject):
     gerber_spec_url = "https://www.ucamco.com/files/downloads/file/81/The_Gerber_File_Format_specification." \
                       "pdf?7ac957791daba2cdf4c2c913f67a43da"
     excellon_spec_url = "https://www.ucamco.com/files/downloads/file/305/the_xnc_file_format_specification.pdf"
-    bug_report_url = "https://github.com/thebestgoodguy/flatcam/issues"
+    bug_report_url = "https://github.com/thebestgoodguy/flatcam"
     donate_url = "https://github.com/thebestgoodguy/flatcam"
     # this variable will hold the project status
     # if True it will mean that the project was modified and not saved
@@ -1012,7 +1011,6 @@ class App(QtCore.QObject):
         self.paste_tool = None
         self.calculator_tool = None
         self.rules_tool = None
-        self.sub_tool = None
         self.move_tool = None
 
         self.cutout_tool = None
@@ -1022,23 +1020,14 @@ class App(QtCore.QObject):
         self.follow_tool = None
         self.drilling_tool = None
         self.milling_tool = None
-        self.levelling_tool = None
-
-        self.optimal_tool = None
         self.transform_tool = None
-        self.report_tool = None
-        self.pdf_tool = None
         self.image_tool = None
-        self.pcb_wizard_tool = None
-        self.qrcode_tool = None
         self.copper_thieving_tool = None
         self.fiducial_tool = None
         self.extract_tool = None
         self.align_objects_tool = None
         self.punch_tool = None
         self.invert_tool = None
-        self.markers_tool = None
-        self.etch_tool = None
 
         # when this list will get populated will contain a list of references to all the Plugins in this APp
         self.app_plugins = []
@@ -1049,13 +1038,6 @@ class App(QtCore.QObject):
         except AttributeError as e:
             self.log.debug("App.__init__() install_tools() --> %s" % str(e))
 
-        # ###########################################################################################################
-        # ######################################### BookMarks Manager ###############################################
-        # ###########################################################################################################
-
-        # install Bookmark Manager and populate bookmarks in the Help -> Bookmarks
-        self.install_bookmarks()
-        self.book_dialog_tab = BookmarkManager(app=self, storage=self.options["global_bookmarks"])
 
         # ###########################################################################################################
         # ########################################### Tools Database ################################################
@@ -1723,21 +1705,7 @@ class App(QtCore.QObject):
         self.invert_tool.install(icon=QtGui.QIcon(self.resource_location + '/invert32.png'), pos=self.ui.menu_plugins)
 
 
-        self.etch_tool = ToolEtchCompensation(self)
-        self.etch_tool.install(icon=QtGui.QIcon(self.resource_location + '/etch_32.png'), pos=self.ui.menu_plugins)
 
-        self.transform_tool = ToolTransform(self)
-        self.transform_tool.install(icon=QtGui.QIcon(self.resource_location + '/transform.png'),
-                                    pos=self.ui.menuoptions, separator=True)
-
-        self.report_tool = ObjectReport(self)
-        self.report_tool.install(icon=QtGui.QIcon(self.resource_location + '/properties32.png'),
-                                 pos=self.ui.menuoptions)
-
-        self.pdf_tool = ToolPDF(self)
-        self.pdf_tool.install(icon=QtGui.QIcon(self.resource_location + '/pdf32.png'),
-                              pos=self.ui.menufileimport,
-                              separator=True)
 
         try:
             from appPlugins.ToolImage import ToolImage
@@ -1772,16 +1740,13 @@ class App(QtCore.QObject):
             self.cnc_control_tool,
 
             self.transform_tool,
-            self.report_tool,
-            self.pdf_tool,
             self.image_tool,
             self.copper_thieving_tool,
             self.fiducial_tool,
             self.extract_tool,
             self.align_objects_tool,
             self.punch_tool,
-            self.invert_tool,
-            self.etch_tool
+            self.invert_tool
         ]
 
         self.log.debug("Tools are installed.")
@@ -2025,7 +1990,6 @@ class App(QtCore.QObject):
 
         self.ui.drill_btn.triggered.connect(lambda: self.drilling_tool.run(toggle=True))
         self.ui.mill_btn.triggered.connect(lambda: self.milling_tool.run(toggle=True))
-        self.ui.level_btn.triggered.connect(lambda: self.levelling_tool.run(toggle=True))
 
         self.ui.isolation_btn.triggered.connect(lambda: self.isolation_tool.run(toggle=True))
         self.ui.follow_btn.triggered.connect(lambda: self.follow_tool.run(toggle=True))
@@ -2038,26 +2002,14 @@ class App(QtCore.QObject):
         self.ui.dblsided_btn.triggered.connect(lambda: self.dblsidedtool.run(toggle=True))
 
         self.ui.align_btn.triggered.connect(lambda: self.align_objects_tool.run(toggle=True))
-        # self.ui.sub_btn.triggered.connect(lambda: self.sub_tool.run(toggle=True))
 
-        # self.ui.extract_btn.triggered.connect(lambda: self.extract_tool.run(toggle=True))
         self.ui.copperfill_btn.triggered.connect(lambda: self.copper_thieving_tool.run(toggle=True))
-        self.ui.markers_tool_btn.triggered.connect(lambda: self.markers_tool.run(toggle=True))
         self.ui.punch_btn.triggered.connect(lambda: self.punch_tool.run(toggle=True))
         self.ui.calculators_btn.triggered.connect(lambda: self.calculator_tool.run(toggle=True))
         if hasattr(self.ui, "cnc_toolbar_btn"):
             self.ui.cnc_toolbar_btn.triggered.connect(lambda: self.cnc_control_tool.run(toggle=True))
 
-        #
-        # self.ui.solder_btn.triggered.connect(lambda: self.paste_tool.run(toggle=True))
-        # self.ui.rules_btn.triggered.connect(lambda: self.rules_tool.run(toggle=True))
-        # self.ui.optimal_btn.triggered.connect(lambda: self.optimal_tool.run(toggle=True))
-        #
-        # self.ui.transform_btn.triggered.connect(lambda: self.transform_tool.run(toggle=True))
-        # self.ui.qrcode_btn.triggered.connect(lambda: self.qrcode_tool.run(toggle=True))
-        # self.ui.fiducials_btn.triggered.connect(lambda: self.fiducial_tool.run(toggle=True))
-        # self.ui.invert_btn.triggered.connect(lambda: self.invert_tool.run(toggle=True))
-        # self.ui.etch_btn.triggered.connect(lambda: self.etch_tool.run(toggle=True))
+
 
     def connect_editors_toolbar_signals(self):
         self.log.debug(" -> Connecting Editors Toolbar Signals")
@@ -3345,7 +3297,7 @@ class App(QtCore.QObject):
                 
                 # Historical attribution
                 self.prog_grid_lay.addWidget(FCLabel('%s' % "Marius Stanciu"), 3, 0)
-                self.prog_grid_lay.addWidget(FCLabel('%s' % _("Original Author (Evo/Plus Fork)")), 3, 1)
+                self.prog_grid_lay.addWidget(FCLabel('%s' % _("Original Author (FlatCAM Evo)")), 3, 1)
                 self.prog_grid_lay.addWidget(FCLabel('%s' % ""), 3, 2)
                 
                 self.prog_grid_lay.addWidget(FCLabel(''), 4, 0)
@@ -3452,302 +3404,7 @@ class App(QtCore.QObject):
 
         AboutDialog(app=self, parent=self.ui).exec()
 
-    def on_howto(self):
-        """
-        Displays the "about" dialog found in the Menu --> Help.
 
-        :return: None
-        """
-
-        class HowtoDialog(QtWidgets.QDialog):
-            def __init__(self, app, parent):
-                QtWidgets.QDialog.__init__(self, parent=parent)
-
-                self.app = app
-                self.app_icon = self.app.ui.app_icon
-
-                open_source_link = "<a href = 'https://opensource.org/'<b>Open Source</b></a>"
-                new_features_link = "<a href = 'https://bitbucket.org/jpcgt/flatcam/pull-requests/'" \
-                                    "<b>click</b></a>"
-
-                bugs_link = "<a href = 'https://bitbucket.org/jpcgt/flatcam/issues/new'<b>click</b></a>"
-                donation_link = "<a href = 'https://www.paypal.com/cgi-bin/webscr?cmd=_" \
-                                "donations&business=WLTJJ3Q77D98L&currency_code=USD&source=url'<b>click</b></a>"
-
-                # Icon and title
-                self.setWindowIcon(self.app_icon)
-                self.setWindowTitle('%s ...' % _("How To"))
-                self.resize(750, 375)
-
-                logo = FCLabel()
-                logo.setPixmap(QtGui.QPixmap(self.app.resource_location + '/contribute256.png'))
-
-                # content = FCLabel(
-                #     "%s<br>"
-                #     "%s<br><br>"
-                #     "%s,<br>"
-                #     "%s<br>"
-                #     "<ul>"
-                #     "<li> &nbsp;%s %s</li>"
-                #     "<li> &nbsp;%s %s</li>"
-                #     "</ul>"
-                #     "%s %s.<br>"
-                #     "%s"
-                #     "<ul>"
-                #     "<li> &nbsp;%s &#128077;</li>"
-                #     "<li> &nbsp;%s &#128513;</li>"
-                #     "</ul>" %
-                #     (
-                #         _("This program is %s and free in a very wide meaning of the word.") % open_source_link,
-                #         _("Yet it cannot evolve without <b>contributions</b>."),
-                #         _("If you want to see this application grow and become better and better"),
-                #         _("you can <b>contribute</b> to the development yourself by:"),
-                #         _("Pull Requests on the Bitbucket repository, if you are a developer"),
-                #         new_features_link,
-                #         _("Bug Reports by providing the steps required to reproduce the bug"),
-                #         bugs_link,
-                #         _("If you like or use this program you can make a donation"),
-                #         donation_link,
-                #         _("You don't have to make a donation %s, and it is totally optional but:") % donation_link,
-                #         _("it will be welcomed with joy"),
-                #         _("it will give me a reason to continue")
-                #     )
-                # )
-
-                # font-weight: bold;
-                content = FCLabel(
-                    "%s<br>"
-                    "%s<br><br>"
-                    "%s,<br>"
-                    "%s<br>"
-                    "<ul>"
-                    "<li> &nbsp;%s %s</li>"
-                    "<li> &nbsp;%s %s</li>"
-                    "</ul>"
-                    "<br><br>"
-                    "%s <br>"
-                    "<span style='color: blue;'>%s</span> %s %s<br>" %
-                    (
-                        _("This program is %s and free in a very wide meaning of the word.") % open_source_link,
-                        _("Yet it cannot evolve without <b>contributions</b>."),
-                        _("If you want to see this application grow and become better and better"),
-                        _("you can <b>contribute</b> to the development yourself by:"),
-                        _("Pull Requests on the Bitbucket repository, if you are a developer"),
-                        new_features_link,
-                        _("Bug Reports by providing the steps required to reproduce the bug"),
-                        bugs_link,
-                        _("If you like what you have seen so far ..."),
-                        _("Donations are NOT required."), _("But they are welcomed"),
-                        donation_link
-                    )
-                )
-                content.setOpenExternalLinks(True)
-
-                # palette
-                pal = QtGui.QPalette()
-                pal.setColor(QtGui.QPalette.ColorRole.Base, Qt.GlobalColor.white)
-
-                # layouts
-                main_layout = QtWidgets.QVBoxLayout()
-                self.setLayout(main_layout)
-
-                tab_layout = QtWidgets.QHBoxLayout()
-                buttons_hlay = QtWidgets.QHBoxLayout()
-
-                main_layout.addLayout(tab_layout)
-                main_layout.addLayout(buttons_hlay)
-
-                tab_widget = QtWidgets.QTabWidget()
-                tab_layout.addWidget(tab_widget)
-
-                closebtn = FCButton(_("Close"))
-                buttons_hlay.addStretch()
-                buttons_hlay.addWidget(closebtn)
-
-                # CONTRIBUTE section
-                self.intro_tab = QtWidgets.QWidget()
-                self.intro_tab_layout = QtWidgets.QHBoxLayout(self.intro_tab)
-                self.intro_tab_layout.setContentsMargins(2, 2, 2, 2)
-                tab_widget.addTab(self.intro_tab, _("Contribute"))
-
-                self.grid_lay = GLay(v_spacing=5, h_spacing=20)
-                # self.grid_lay.setHorizontalSpacing(20)
-
-                intro_wdg = QtWidgets.QWidget()
-                intro_wdg.setLayout(self.grid_lay)
-                intro_scroll_area = QtWidgets.QScrollArea()
-                intro_scroll_area.setWidget(intro_wdg)
-                intro_scroll_area.setWidgetResizable(True)
-                intro_scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-                intro_scroll_area.setPalette(pal)
-
-                self.grid_lay.addWidget(logo, 0, 0)
-                self.grid_lay.addWidget(content, 0, 1)
-                self.intro_tab_layout.addWidget(intro_scroll_area)
-
-                # LINKS EXCHANGE section
-                self.links_tab = QtWidgets.QWidget()
-                self.links_tab_layout = QtWidgets.QVBoxLayout(self.links_tab)
-                self.links_tab_layout.setContentsMargins(2, 2, 2, 2)
-                tab_widget.addTab(self.links_tab, _("Links Exchange"))
-
-                self.links_lay = QtWidgets.QHBoxLayout()
-
-                links_wdg = QtWidgets.QWidget()
-                links_wdg.setLayout(self.links_lay)
-                links_scroll_area = QtWidgets.QScrollArea()
-                links_scroll_area.setWidget(links_wdg)
-                links_scroll_area.setWidgetResizable(True)
-                links_scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-                links_scroll_area.setPalette(pal)
-
-                self.links_lay.addWidget(
-                    FCLabel('%s' % _("Soon ...")), alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-                self.links_tab_layout.addWidget(links_scroll_area)
-
-                # HOW TO section
-                self.howto_tab = QtWidgets.QWidget()
-                self.howto_tab_layout = QtWidgets.QVBoxLayout(self.howto_tab)
-                self.howto_tab_layout.setContentsMargins(2, 2, 2, 2)
-                tab_widget.addTab(self.howto_tab, _("How To's"))
-
-                self.howto_lay = QtWidgets.QHBoxLayout()
-
-                howto_wdg = QtWidgets.QWidget()
-                howto_wdg.setLayout(self.howto_lay)
-                howto_scroll_area = QtWidgets.QScrollArea()
-                howto_scroll_area.setWidget(howto_wdg)
-                howto_scroll_area.setWidgetResizable(True)
-                howto_scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-                howto_scroll_area.setPalette(pal)
-
-                self.howto_lay.addWidget(
-                    FCLabel('%s' % _("Soon ...")), alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-                self.howto_tab_layout.addWidget(howto_scroll_area)
-
-                # BUTTONS section
-                closebtn.clicked.connect(self.accept)
-
-        HowtoDialog(app=self, parent=self.ui).exec()
-
-    def install_bookmarks(self, book_dict=None):
-        """
-        Install the bookmarks actions in the Help menu -> Bookmarks
-
-        :param book_dict:   a dict having the actions text as keys and the weblinks as the values
-        :return:            None
-        """
-
-        if book_dict is None:
-            self.options["global_bookmarks"].update(
-                {
-                    '1': ['FlatCAM', "http://flatcam.org"],
-                    '2': [_('Backup Site'), ""]
-                }
-            )
-        else:
-            self.options["global_bookmarks"].clear()
-            self.options["global_bookmarks"].update(book_dict)
-
-        # first try to disconnect if somehow they get connected from elsewhere
-        for act in self.ui.menuhelp_bookmarks.actions():
-            try:
-                act.triggered.disconnect()
-            except TypeError:
-                pass
-
-            # clear all actions except the last one who is the Bookmark manager
-            if act is self.ui.menuhelp_bookmarks.actions()[-1]:
-                pass
-            else:
-                self.ui.menuhelp_bookmarks.removeAction(act)
-
-        bm_limit = int(self.options["global_bookmarks_limit"])
-        if self.options["global_bookmarks"]:
-
-            # order the self.options["global_bookmarks"] dict keys by the value as integer
-            # the whole convoluted things is because when serializing the self.options (on app close or save)
-            # the JSON is first making the keys as strings (therefore I have to use strings too
-            # or do the conversion :(
-            # )
-            # and it is ordering them (actually I want that to make the options easy to search within) but making
-            # the '10' entry just after '1' therefore ordering as strings
-
-            sorted_bookmarks = sorted(list(self.options["global_bookmarks"].items())[:bm_limit],
-                                      key=lambda x: int(x[0]))
-            for entry, bookmark in sorted_bookmarks:
-                title = bookmark[0]
-                weblink = bookmark[1]
-
-                act = QtGui.QAction(parent=self.ui.menuhelp_bookmarks)
-                act.setText(title)
-
-                act.setIcon(QtGui.QIcon(self.resource_location + '/link16.png'))
-                # from here: https://stackoverflow.com/questions/20390323/pyqt-dynamic-generate-qmenu-action-and-connect
-                if title == _('Backup Site') and weblink == "":
-                    act.triggered.connect(self.on_backup_site)
-                else:
-                    act.triggered.connect(lambda sig, link=weblink: webbrowser.open(link))
-                self.ui.menuhelp_bookmarks.insertAction(self.ui.menuhelp_bookmarks_manager, act)
-
-        self.ui.menuhelp_bookmarks_manager.triggered.connect(self.on_bookmarks_manager)
-
-    def on_bookmarks_manager(self):
-        """
-        Adds the bookmark manager in a Tab in Plot Area.
-
-        :return:
-        """
-        for idx in range(self.ui.plot_tab_area.count()):
-            if self.ui.plot_tab_area.tabText(idx) == _("Bookmarks Manager"):
-                # there can be only one instance of Bookmark Manager at one time
-                return
-
-        # BookDialog(app=self, storage=self.options["global_bookmarks"], parent=self.ui).exec()
-        self.book_dialog_tab = BookmarkManager(app=self, storage=self.options["global_bookmarks"], parent=self.ui)
-        self.book_dialog_tab.setObjectName("bookmarks_tab")
-
-        # add the tab if it was closed
-        self.ui.plot_tab_area.addTab(self.book_dialog_tab, _("Bookmarks Manager"))
-
-        # delete the absolute and relative position and messages in the infobar
-        # self.ui.position_label.setText("")
-        # self.ui.rel_position_label.setText("")
-
-        # hide coordinates toolbars in the infobar while in DB
-        self.ui.coords_toolbar.hide()
-        self.ui.delta_coords_toolbar.hide()
-
-        # Switch plot_area to preferences page
-        self.ui.plot_tab_area.setCurrentWidget(self.book_dialog_tab)
-
-    def on_backup_site(self):
-        """
-        Called when the user click on the menu entry Help -> Bookmarks -> Backup Site
-
-        :return:
-        :rtype:
-        """
-        msgbox = FCMessageBox(parent=self.ui)
-        title = _("Alternative website")
-        txt = _("This entry will resolve to another website if:\n\n"
-                "1. FlatCAM.org website is down\n"
-                "2. Someone forked FlatCAM project and wants to point\n"
-                "to his own website\n\n"
-                "If you can't get any informations about the application\n"
-                "use the YouTube channel link from the Help menu.")
-        msgbox.setWindowTitle(title)  # taskbar still shows it
-        msgbox.setWindowIcon(QtGui.QIcon(self.resource_location + '/app128.png'))
-        msgbox.setText('<b>%s</b>\n\n' % title)
-        msgbox.setInformativeText(txt)
-
-        msgbox.setIconPixmap(QtGui.QPixmap(self.resource_location + '/globe16.png'))
-
-        bt_yes = msgbox.addButton(_('Close'), QtWidgets.QMessageBox.ButtonRole.YesRole)
-
-        msgbox.setDefaultButton(bt_yes)
-        msgbox.exec()
-        # response = msgbox.clickedButton()
 
     def final_save(self):
         """
@@ -5401,11 +5058,7 @@ class App(QtCore.QObject):
         except (TypeError, AttributeError):
             pass
 
-        try:
-            # clear the possible drawn probing shapes for Levelling Tool
-            self.levelling_tool.probing_shapes.clear(update=True)
-        except AttributeError:
-            pass
+
 
         try:
             # clean possible tool shapes for Isolation, NCC, Paint, Punch Gerber Plugins

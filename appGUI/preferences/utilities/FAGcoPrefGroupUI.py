@@ -42,7 +42,7 @@ class FAGcoPrefGroupUI(OptionsGroupUI):
         )
         self.layout.addWidget(self.gco_list_label)
 
-        q_settings = QSettings("Open Source", "FlatCAM_EVO")
+        q_settings = QSettings("Open Source", "FlatCAM_Plus")
         if q_settings.contains("textbox_font_size"):
             tb_fsize = q_settings.value('textbox_font_size', type=int)
         else:

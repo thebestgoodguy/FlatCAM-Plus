@@ -782,7 +782,7 @@ class Distance(AppTool):
         else:
             meas_line = LineString([start_pos, end_pos])
 
-        settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+        settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
         if settings.contains("theme"):
             theme = settings.value('theme', type=str)
         else:

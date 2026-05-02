@@ -29,8 +29,6 @@ from appPlugins.ToolCNCControl import ToolCNCControl
 
 
 from appPlugins.ToolPanelize import Panelize
-from appPlugins.ToolPDF import ToolPDF
-from appPlugins.ToolReport import ObjectReport
 
 from appPlugins.ToolRulesCheck import RulesCheck
 
@@ -44,4 +42,3 @@ from appPlugins.ToolTransform import ToolTransform
 from appPlugins.ToolPunchGerber import ToolPunchGerber
 
 from appPlugins.ToolInvertGerber import ToolInvertGerber
-from appPlugins.ToolEtchCompensation import ToolEtchCompensation

@@ -91,7 +91,7 @@ def on_language_apply_click(app, restart=False):
     """
     name = app.ui.general_pref_form.general_app_group.language_combo.currentText()
 
-    theme_settings = QSettings("Open Source", "FlatCAM_EVO")
+    theme_settings = QSettings("Open Source", "FlatCAM_Plus")
     if theme_settings.contains("theme"):
         theme = theme_settings.value('theme', type=str)
     else:
@@ -103,7 +103,7 @@ def on_language_apply_click(app, restart=False):
         resource_loc = 'assets/resources/dark_resources'
 
     # do nothing if trying to apply the language that is the current language (already applied).
-    settings = QSettings("Open Source", "FlatCAM_EVO")
+    settings = QSettings("Open Source", "FlatCAM_Plus")
     if settings.contains("language"):
         current_language = settings.value('language', type=str)
         if current_language == name:
@@ -129,7 +129,7 @@ def on_language_apply_click(app, restart=False):
         if response == bt_no:
             return
         else:
-            settings = QSettings("Open Source", "FlatCAM_EVO")
+            settings = QSettings("Open Source", "FlatCAM_Plus")
             saved_language = name
             settings.setValue('language', saved_language)
             # This will write the setting to the platform specific storage.
@@ -142,7 +142,7 @@ def apply_language(domain, lang=None):
     lang_code = ''
 
     if lang is None:
-        settings = QSettings("Open Source", "FlatCAM_EVO")
+        settings = QSettings("Open Source", "FlatCAM_Plus")
         if settings.contains("language"):
             name = settings.value('language')
         else:
@@ -187,7 +187,7 @@ def restart_program(app, ask=None):
     """
     log.debug("FlatCAMTranslation.restart_program()")
 
-    theme_settings = QSettings("Open Source", "FlatCAM_EVO")
+    theme_settings = QSettings("Open Source", "FlatCAM_Plus")
     if theme_settings.contains("theme"):
         theme = theme_settings.value('theme', type=str)
     else:

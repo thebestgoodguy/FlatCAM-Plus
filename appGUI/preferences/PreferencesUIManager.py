@@ -1090,7 +1090,7 @@ class PreferencesUIManager(QtCore.QObject):
         self.defaults.current_defaults.update(self.defaults)
 
         # deal with appearance change
-        appearance_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+        appearance_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
         if appearance_settings.contains("appearance"):
             appearance = appearance_settings.value('appearance', type=str)
         else:
@@ -1164,7 +1164,7 @@ class PreferencesUIManager(QtCore.QObject):
             saved_filename_path = os.path.join(self.data_path, 'current_defaults_%s.FlatConfig' % self.defaults.version)
             self.defaults.load(filename=saved_filename_path, inform=self.inform)
 
-        settgs = QSettings("Open Source", "FlatCAM_EVO")
+        settgs = QSettings("Open Source", "FlatCAM_Plus")
 
         # save the notebook font size
         fsize = self.ui.general_pref_form.general_app_set_group.notebook_font_size_spinner.get_value()

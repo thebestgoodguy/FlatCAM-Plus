@@ -354,7 +354,7 @@ class ObjectCollection(QtCore.QAbstractItemModel):
         # self.view.setAcceptDrops(True)
         # self.view.setDropIndicatorShown(True)
 
-        settings = QSettings("Open Source", "FlatCAM_EVO")
+        settings = QSettings("Open Source", "FlatCAM_Plus")
         if settings.contains("notebook_font_size"):
             fsize = settings.value('notebook_font_size', type=int)
         else:
@@ -507,7 +507,7 @@ class ObjectCollection(QtCore.QAbstractItemModel):
                 return index.internalPointer().data(index.column())
 
         if role == Qt.ItemDataRole.ForegroundRole:
-            theme_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+            theme_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
             theme = theme_settings.value('theme', type=str)
 
             if theme == 'dark':

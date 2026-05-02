@@ -82,7 +82,7 @@ class CanvasCache(QtCore.QObject):
         self.axes.set_xticks([])
         self.axes.set_yticks([])
 
-        settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+        settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
         if settings.contains("theme"):
             theme = settings.value('theme', type=str)
         else:
@@ -463,7 +463,7 @@ class PlotCanvasLegacy(QtCore.QObject):
             self.on_update_text_hud()
 
             # set font size
-            q_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
+            q_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
             if q_settings.contains("hud_font_size"):
                 # I multiply with 2.5 because this seems to be the difference between the value taken by the VisPy (3D)
                 # and Matplotlib (Legacy2D FlatCAM graphic engine)
