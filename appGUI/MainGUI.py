@@ -1,5 +1,5 @@
 ﻿# ##########################################################
-# FlatCAM PLUS: 2D Post-processing for Manufacturing       #
+# FlatCAM: 2D Post-processing for Manufacturing            #
 # http://flatcam.org                                       #
 # Author: Juan Pablo Caram (c)                             #
 # Date: 2/5/2014                                           #
@@ -7,8 +7,8 @@
 # ##########################################################
 
 # ##########################################################
-# File Modified (major mod): Sadri ERCAN                   #
-# Date: 5/1/2026                                           #
+# File Modified (major mod): Marius Adrian Stanciu         #
+# Date: 3/10/2019                                          #
 # ##########################################################
 from PyQt6.QtCore import QSettings
 
@@ -649,6 +649,9 @@ class MainGUI(QtWidgets.QMainWindow):
         # ########################## Help # ######################################
         # ########################################################################
         self.menuhelp = self.menu.addMenu(_('Help'))
+        self.menuhelp_manual = self.menuhelp.addAction(
+            QtGui.QIcon(self.app.resource_location + '/globe16.png'),
+            '%s\t%s' % (_('Obsolete Online Help'), _('F1')))
 
         self.menuhelp_bookmarks = self.menuhelp.addMenu(
             QtGui.QIcon(self.app.resource_location + '/bookmarks16.png'), _('Bookmarks'))
@@ -674,6 +677,19 @@ class MainGUI(QtWidgets.QMainWindow):
         self.menuhelp_shortcut_list = self.menuhelp.addAction(
             QtGui.QIcon(self.app.resource_location + '/shortcuts24.png'),
             '%s\t%s' % (_('Shortcuts List'), _('F3')))
+        self.menuhelp_videohelp = self.menuhelp.addAction(
+            QtGui.QIcon(self.app.resource_location + '/youtube32.png'),
+            '%s\t%s' % (_('YouTube Channel'), _('F4')))
+
+        self.menuhelp.addSeparator()
+
+        self.menuhelp_donate = self.menuhelp.addAction(
+            QtGui.QIcon(self.app.resource_location + '/paypal32.png'),
+            '%s\t%s' % (_('Donate'), ''))
+
+        self.menuhelp_readme = self.menuhelp.addAction(
+            QtGui.QIcon(self.app.resource_location + '/warning.png'),
+            '%s\t%s' % (_("How To"), ''))
 
         self.menuhelp_about = self.menuhelp.addAction(
             QtGui.QIcon(self.app.resource_location + '/about32.png'),
@@ -1217,8 +1233,6 @@ class MainGUI(QtWidgets.QMainWindow):
         #     QtGui.QIcon(self.app.resource_location + '/invert32.png'), _("Invert Gerber"))
         # self.etch_btn = self.toolbarplugins.addAction(
         #     QtGui.QIcon(self.app.resource_location + '/etch_32.png'), _("Etch Compensation"))
-
-        self.add_cnc_toolbar_controls()
 
         # ########################################################################
         # ########################## Excellon Editor Toolbar# ####################
@@ -1996,7 +2010,7 @@ class MainGUI(QtWidgets.QMainWindow):
         self.app_icon.addFile(self.app.resource_location + '/app256.png', QtCore.QSize(256, 256))
         self.setWindowIcon(self.app_icon)
 
-        self.setWindowTitle('FlatCAM Plus %s %s - %s' %
+        self.setWindowTitle('FlatCAM Evo %s %s - %s' %
                             (self.app.version,
                              ('BETA' if self.app.beta else ''),
                              platform.architecture()[0])
@@ -2054,7 +2068,7 @@ class MainGUI(QtWidgets.QMainWindow):
         # ########################################################################
         # ################## RESTORE UI from QSettings #################
         # ########################################################################
-        q_settings = QSettings("Open Source", "FlatCAM_Plus")
+        q_settings = QSettings("Open Source", "FlatCAM_EVO")
         if q_settings.contains("saved_gui_state"):
             self.restoreState(q_settings.value('saved_gui_state'), 0)
         tb_lock_state = q_settings.value('toolbar_lock', "true")
@@ -2217,13 +2231,13 @@ class MainGUI(QtWidgets.QMainWindow):
         :param name: String that store the project path and project name
         :return: None
         """
-        title = 'FlatCAM Plus %s %s - %s - [%s]    %s' % (
+        title = 'FlatCAM Evo %s %s - %s - [%s]    %s' % (
             self.app.version, ('BETA' if self.app.beta else ''), platform.architecture()[0], self.app.engine, name)
         self.setWindowTitle(title)
 
     def on_toggle_gui(self):
         if self.isHidden():
-            mgui_settings = QSettings("Open Source", "FlatCAM_Plus")
+            mgui_settings = QSettings("Open Source", "FlatCAM_EVO")
             if mgui_settings.contains("maximized_gui"):
                 maximized_ui = mgui_settings.value('maximized_gui', type=bool)
                 if maximized_ui is True:
@@ -2329,7 +2343,7 @@ class MainGUI(QtWidgets.QMainWindow):
         """
         self.app.log.debug("Clearing the settings in QSettings. GUI settings cleared.")
 
-        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_Plus")
+        theme_settings = QtCore.QSettings("Open Source", "FlatCAM_EVO")
         theme_settings.setValue('theme', 'light')
 
         del theme_settings
@@ -2354,7 +2368,7 @@ class MainGUI(QtWidgets.QMainWindow):
             response = msgbox.clickedButton()
 
         if forced_clear is True or response == bt_yes:
-            q_settings = QSettings("Open Source", "FlatCAM_Plus")
+            q_settings = QSettings("Open Source", "FlatCAM_EVO")
             for key in q_settings.allKeys():
                 q_settings.remove(key)
             # This will write the setting to the platform specific storage.
@@ -2541,8 +2555,6 @@ class MainGUI(QtWidgets.QMainWindow):
         # self.etch_btn = self.toolbarplugins.addAction(
         #     QtGui.QIcon(self.app.resource_location + '/etch_32.png'), _("Etch Compensation"))
 
-        self.add_cnc_toolbar_controls()
-
         # ########################################################################
         # ################### Excellon Editor Toolbar ############################
         # ########################################################################
@@ -2674,7 +2686,7 @@ class MainGUI(QtWidgets.QMainWindow):
         self.snap_magnet.setVisible(False)
         self.editor_exit_btn_ret_action.setVisible(False)
 
-        q_settings = QSettings("Open Source", "FlatCAM_Plus")
+        q_settings = QSettings("Open Source", "FlatCAM_EVO")
         if q_settings.contains("layout"):
             layout = q_settings.value('layout', type=str)
 
@@ -2686,42 +2698,6 @@ class MainGUI(QtWidgets.QMainWindow):
                 self.geo_edit_toolbar.setDisabled(True)
                 self.grb_edit_toolbar.setVisible(True)
                 self.grb_edit_toolbar.setDisabled(True)
-
-    def add_cnc_toolbar_controls(self):
-        current_action = getattr(self, "cnc_toolbar_status_action", None)
-        if current_action is not None and current_action in self.toolbarplugins.actions():
-            return
-
-        self.cnc_toolbar_btn = self.toolbarplugins.addAction(
-            QtGui.QIcon(self.app.resource_location + '/cnc32.png'), _("CNC"))
-        self.cnc_toolbar_btn.setToolTip(_("Open CNC Controller."))
-
-        self.cnc_toolbar_status_action = self.toolbarplugins.addAction(
-            QtGui.QIcon(self.app.resource_location + '/link32.png'), _("Connect"))
-        self.cnc_toolbar_status_action.setToolTip(_("Open CNC connection."))
-        self.cnc_toolbar_connection_handler = None
-        self.update_cnc_toolbar_status(False, "")
-
-    def set_cnc_toolbar_connection_handler(self, handler):
-        self.cnc_toolbar_connection_handler = handler
-        try:
-            self.cnc_toolbar_status_action.triggered.disconnect()
-        except TypeError:
-            pass
-        self.cnc_toolbar_status_action.triggered.connect(lambda _checked=False: handler())
-
-    def update_cnc_toolbar_status(self, connected=False, description="", state=None):
-        if not hasattr(self, "cnc_toolbar_status_action"):
-            return
-
-        self.cnc_toolbar_status_action.setText(_("Connected") if connected else _("Connect"))
-        self.cnc_toolbar_status_action.setIcon(
-            QtGui.QIcon(self.app.resource_location + ('/power16.png' if connected else '/link32.png'))
-        )
-        tooltip = description if connected and description else _("Open CNC connection.")
-        if state:
-            tooltip = "%s - %s" % (state, tooltip)
-        self.cnc_toolbar_status_action.setToolTip(tooltip)
 
     def on_shortcut_list(self):
         # add the tab if it was closed
@@ -2778,7 +2754,7 @@ class MainGUI(QtWidgets.QMainWindow):
                 if isinstance(widget, QtWidgets.QToolBar):
                     widget.setMovable(True)
 
-        q_settings = QSettings("Open Source", "FlatCAM_Plus")
+        q_settings = QSettings("Open Source", "FlatCAM_EVO")
         q_settings.setValue('toolbar_lock', lock)
         # This will write the setting to the platform specific storage.
         del q_settings
@@ -2793,7 +2769,7 @@ class MainGUI(QtWidgets.QMainWindow):
                 if isinstance(widget, QtWidgets.QToolBar):
                     widget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
-        q_settings = QSettings("Open Source", "FlatCAM_Plus")
+        q_settings = QSettings("Open Source", "FlatCAM_EVO")
         q_settings.setValue('menu_show_text', show_text)
         # This will write the setting to the platform specific storage.
         del q_settings
@@ -4634,7 +4610,7 @@ class MainGUI(QtWidgets.QMainWindow):
         else:
             g_rect = self.geometry()
 
-            q_settings = QSettings("Open Source", "FlatCAM_Plus")
+            q_settings = QSettings("Open Source", "FlatCAM_EVO")
             q_settings.setValue('saved_gui_state', self.saveState(0))
             q_settings.setValue('toolbar_lock', self.lock_action.isChecked())
             q_settings.setValue('menu_show_text', self.show_text_action.isChecked())
