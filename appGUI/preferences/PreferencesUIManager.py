@@ -1068,12 +1068,6 @@ class PreferencesUIManager(QtCore.QObject):
         self.ui.plugin_pref_form.tools_film_group.film_color_entry.set_value(
             self.defaults['tools_film_color'])
 
-        # Init the Tool QRCode colors
-        self.ui.plugin2_pref_form.tools2_qrcode_group.fill_color_entry.set_value(
-            self.defaults['tools_qrcode_fill_color'])
-
-        self.ui.plugin2_pref_form.tools2_qrcode_group.back_color_entry.set_value(
-            self.defaults['tools_qrcode_back_color'])
 
     def on_save_button(self, save_to_file=True):
         self.ui.app.log.debug("on_save_button() --> Applying preferences to file.")
