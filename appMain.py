@@ -2071,7 +2071,7 @@ class App(QtCore.QObject):
         self.ui.punch_btn.triggered.connect(lambda: self.punch_tool.run(toggle=True))
         self.ui.calculators_btn.triggered.connect(lambda: self.calculator_tool.run(toggle=True))
         if hasattr(self.ui, "cnc_toolbar_btn"):
-            self.ui.cnc_toolbar_btn.clicked.connect(lambda: self.cnc_control_tool.run(toggle=True))
+            self.ui.cnc_toolbar_btn.triggered.connect(lambda: self.cnc_control_tool.run(toggle=True))
 
         #
         # self.ui.solder_btn.triggered.connect(lambda: self.paste_tool.run(toggle=True))

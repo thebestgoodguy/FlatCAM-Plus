@@ -2692,90 +2692,36 @@ class MainGUI(QtWidgets.QMainWindow):
         if current_action is not None and current_action in self.toolbarplugins.actions():
             return
 
-        spacer = QtWidgets.QWidget()
-        spacer.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
-        self.cnc_toolbar_spacer_action = self.toolbarplugins.addWidget(spacer)
-
-        self.cnc_toolbar_btn = QtWidgets.QToolButton()
-        self.cnc_toolbar_btn.setText("CNC")
-        self.cnc_toolbar_btn.setIcon(QtGui.QIcon(self.app.resource_location + '/cnc32.png'))
-        self.cnc_toolbar_btn.setIconSize(QtCore.QSize(18, 18))
-        self.cnc_toolbar_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.cnc_toolbar_btn = self.toolbarplugins.addAction(
+            QtGui.QIcon(self.app.resource_location + '/cnc32.png'), _("CNC"))
         self.cnc_toolbar_btn.setToolTip(_("Open CNC Controller."))
-        self.cnc_toolbar_btn.setMinimumHeight(26)
-        self.cnc_toolbar_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.cnc_toolbar_btn_action = self.toolbarplugins.addWidget(self.cnc_toolbar_btn)
 
-        status_frame = QtWidgets.QFrame()
-        status_frame.setObjectName("cnc_toolbar_status")
-        status_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-        status_frame.setToolTip(_("Open CNC connection."))
-        status_frame.setStyleSheet("""
-            QFrame#cnc_toolbar_status {
-                border: 1px solid palette(mid);
-                border-radius: 4px;
-                padding: 2px 6px;
-                background: palette(base);
-            }
-        """)
-        status_lay = QtWidgets.QHBoxLayout(status_frame)
-        status_lay.setContentsMargins(6, 2, 6, 2)
-        status_lay.setSpacing(5)
-
-        self.cnc_toolbar_led = QtWidgets.QFrame()
-        self.cnc_toolbar_led.setFixedSize(10, 10)
-        self.cnc_toolbar_led.setStyleSheet("background-color: #999999; border-radius: 5px;")
-        self.cnc_toolbar_state = FCLabel(_("Connect"), bold=True)
-        self.cnc_toolbar_detail = FCLabel("", color="#777777")
-        self.cnc_toolbar_detail.setMinimumWidth(80)
-        for widget in [self.cnc_toolbar_led, self.cnc_toolbar_state, self.cnc_toolbar_detail]:
-            widget.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        status_lay.addWidget(self.cnc_toolbar_led)
-        status_lay.addWidget(self.cnc_toolbar_state)
-        status_lay.addWidget(self.cnc_toolbar_detail)
-        status_frame.mouseReleaseEvent = self.on_cnc_toolbar_status_clicked
-        self.cnc_toolbar_led.mouseReleaseEvent = self.on_cnc_toolbar_status_clicked
-        self.cnc_toolbar_state.mouseReleaseEvent = self.on_cnc_toolbar_status_clicked
-        self.cnc_toolbar_detail.mouseReleaseEvent = self.on_cnc_toolbar_status_clicked
+        self.cnc_toolbar_status_action = self.toolbarplugins.addAction(
+            QtGui.QIcon(self.app.resource_location + '/link32.png'), _("Connect"))
+        self.cnc_toolbar_status_action.setToolTip(_("Open CNC connection."))
         self.cnc_toolbar_connection_handler = None
-        self.cnc_toolbar_status_widget = status_frame
-        self.cnc_toolbar_status_action = self.toolbarplugins.addWidget(status_frame)
         self.update_cnc_toolbar_status(False, "")
 
     def set_cnc_toolbar_connection_handler(self, handler):
         self.cnc_toolbar_connection_handler = handler
-
-    def on_cnc_toolbar_status_clicked(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and callable(self.cnc_toolbar_connection_handler):
-            self.cnc_toolbar_connection_handler()
-            event.accept()
-            return
-        event.ignore()
+        try:
+            self.cnc_toolbar_status_action.triggered.disconnect()
+        except TypeError:
+            pass
+        self.cnc_toolbar_status_action.triggered.connect(lambda _checked=False: handler())
 
     def update_cnc_toolbar_status(self, connected=False, description="", state=None):
-        if not hasattr(self, "cnc_toolbar_led"):
+        if not hasattr(self, "cnc_toolbar_status_action"):
             return
 
-        state_text = state or ("CONNECTED" if connected else "CONNECT")
-        colors = {
-            "CONNECTED": "#5cb85c",
-            "CONNECT": "#999999",
-            "IDLE": "#5cb85c",
-            "RUN": "#337ab7",
-            "JOG": "#31b0d5",
-            "HOLD": "#f0ad4e",
-            "ALARM": "#d9534f",
-        }
-        self.cnc_toolbar_led.setStyleSheet(
-            "background-color: %s; border-radius: 5px;" % colors.get(state_text.upper(), "#999999")
+        self.cnc_toolbar_status_action.setText(_("Connected") if connected else _("Connect"))
+        self.cnc_toolbar_status_action.setIcon(
+            QtGui.QIcon(self.app.resource_location + ('/power16.png' if connected else '/link32.png'))
         )
-        self.cnc_toolbar_state.setText(_("Connected") if connected else _("Connect"))
-        self.cnc_toolbar_detail.setText(description or "")
-        self.cnc_toolbar_detail.setVisible(bool(description))
-        if hasattr(self, "cnc_toolbar_status_widget"):
-            tooltip = description if connected and description else _("Open CNC connection.")
-            self.cnc_toolbar_status_widget.setToolTip(tooltip)
+        tooltip = description if connected and description else _("Open CNC connection.")
+        if state:
+            tooltip = "%s - %s" % (state, tooltip)
+        self.cnc_toolbar_status_action.setToolTip(tooltip)
 
     def on_shortcut_list(self):
         # add the tab if it was closed

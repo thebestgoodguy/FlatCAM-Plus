@@ -19,6 +19,7 @@ import gettext
 import html
 import http.cookiejar
 import logging
+import math
 import os
 import re
 import socket
@@ -61,9 +62,13 @@ CNC_PROFILES = {
         "feed_plus": b"\x91",
         "feed_minus": b"\x92",
         "feed_reset": b"\x90",
+        "feed_set": "M220 S{percent}",
         "spindle_plus": b"\x9a",
         "spindle_minus": b"\x9b",
         "spindle_reset": b"\x99",
+        "spindle_override_set": "M221 S{percent}",
+        "spindle_set": "M3 S{rpm}",
+        "spindle_stop": "M5",
         "probe_z": "G38.2 Z-50 F100",
         "laser_on": "M3 S100",
         "laser_off": "M5",
@@ -87,9 +92,13 @@ CNC_PROFILES = {
         "feed_plus": b"\x91",
         "feed_minus": b"\x92",
         "feed_reset": b"\x90",
+        "feed_set": "M220 S{percent}",
         "spindle_plus": b"\x9a",
         "spindle_minus": b"\x9b",
         "spindle_reset": b"\x99",
+        "spindle_override_set": "M221 S{percent}",
+        "spindle_set": "M3 S{rpm}",
+        "spindle_stop": "M5",
         "probe_z": "G38.2 Z-50 F100",
         "laser_on": "M3 S100",
         "laser_off": "M5",
@@ -112,6 +121,10 @@ CNC_PROFILES = {
         "feed_plus": "M220 S110",
         "feed_minus": "M220 S90",
         "feed_reset": "M220 S100",
+        "feed_set": "M220 S{percent}",
+        "spindle_override_set": "M221 S{percent}",
+        "spindle_set": "M3 S{rpm}",
+        "spindle_stop": "M5",
         "probe_z": "G30",
         "laser_on": "M3 S100",
         "laser_off": "M5",
@@ -131,6 +144,10 @@ CNC_PROFILES = {
         "zero_all": "G92 X0 Y0 Z0",
         "jog": "G91\nG0 {axis}{distance:.4f} F{feed}\nG90",
         "probe_z": "G30",
+        "feed_set": "M220 S{percent}",
+        "spindle_override_set": "M221 S{percent}",
+        "spindle_set": "M3 S{rpm}",
+        "spindle_stop": "M5",
         "laser_on": "M3 S100",
         "laser_off": "M5",
     },
@@ -148,6 +165,10 @@ CNC_PROFILES = {
         "zero_all": "G92 X0 Y0 Z0",
         "jog": "G91\nG0 {axis}{distance:.4f} F{feed}\nG90",
         "probe_z": "G30",
+        "feed_set": "M220 S{percent}",
+        "spindle_override_set": "M221 S{percent}",
+        "spindle_set": "M3 S{rpm}",
+        "spindle_stop": "M5",
         "laser_on": "M3 S100",
         "laser_off": "M5",
     },
@@ -164,6 +185,114 @@ class FluidStyleButton(QtWidgets.QToolButton):
         self.setIconSize(QtCore.QSize(18, 18))
         self.setMinimumHeight(28)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
+
+
+class DashboardGauge(QtWidgets.QWidget):
+    def __init__(self, title, unit, max_value, accent="#31b0d5", parent=None):
+        super().__init__(parent)
+        self.title = title
+        self.unit = unit
+        self.max_value = float(max_value)
+        self.accent = QtGui.QColor(accent)
+        self._value = 0.0
+        self._target = 0.0
+        self._timer = QtCore.QTimer(self)
+        self._timer.setInterval(16)
+        self._timer.timeout.connect(self._animate_value)
+        self.setMinimumSize(150, 170)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+
+    def set_value(self, value):
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            value = 0.0
+        self._target = max(0.0, value)
+        if not self._timer.isActive():
+            self._timer.start()
+
+    def _animate_value(self):
+        delta = self._target - self._value
+        if abs(delta) < 0.5:
+            self._value = self._target
+            self._timer.stop()
+        else:
+            self._value += delta * 0.18
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+
+        palette = self.palette()
+        text_color = palette.color(QtGui.QPalette.ColorRole.WindowText)
+        mid_color = palette.color(QtGui.QPalette.ColorRole.Mid)
+        base_color = palette.color(QtGui.QPalette.ColorRole.Base)
+
+        rect = self.rect().adjusted(6, 4, -6, -4)
+        painter.setPen(QtGui.QPen(mid_color, 1))
+        painter.setBrush(base_color)
+        painter.drawRoundedRect(QtCore.QRectF(rect), 6, 6)
+
+        title_font = QtGui.QFont(painter.font())
+        title_font.setBold(True)
+        title_font.setPointSize(max(8, title_font.pointSize()))
+        painter.setFont(title_font)
+        painter.setPen(text_color)
+        painter.drawText(rect.adjusted(0, 4, 0, 0), Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, self.title)
+
+        gauge_top = rect.top() + 24
+        gauge_bottom = rect.bottom() - 30
+        gauge_height = max(40, gauge_bottom - gauge_top)
+        side = min(rect.width() - 26, gauge_height)
+        arc_rect = QtCore.QRectF(
+            rect.center().x() - side / 2,
+            gauge_top + (gauge_height - side) / 2,
+            side,
+            side
+        )
+
+        track_pen = QtGui.QPen(mid_color.lighter(135), 9, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        painter.setPen(track_pen)
+        painter.drawArc(arc_rect, 225 * 16, -270 * 16)
+
+        segment_span = -90 * 16
+        for start, color in [
+            (225, "#4cc26f"),
+            (135, "#f0c04a"),
+            (45, "#e85d5d"),
+        ]:
+            painter.setPen(QtGui.QPen(QtGui.QColor(color), 9, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            painter.drawArc(arc_rect, start * 16, segment_span)
+
+        ratio = 0.0 if self.max_value <= 0 else self._value / self.max_value
+        ratio = max(0.0, min(ratio, 1.0))
+        painter.setPen(QtGui.QPen(self.accent, 5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.drawArc(arc_rect.adjusted(7, 7, -7, -7), 225 * 16, int(-270 * ratio * 16))
+
+        center = QtCore.QPointF(arc_rect.center().x(), arc_rect.center().y() + side * 0.12)
+        needle_radius = side * 0.36
+        angle = 225 - (270 * ratio)
+        rad = angle * 3.141592653589793 / 180.0
+        needle_end = QtCore.QPointF(
+            center.x() + needle_radius * math.cos(rad),
+            center.y() - needle_radius * math.sin(rad)
+        )
+        painter.setPen(QtGui.QPen(text_color, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.drawLine(center, needle_end)
+        painter.setBrush(self.accent)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(center, 4, 4)
+
+        value_font = QtGui.QFont(painter.font())
+        value_font.setBold(True)
+        value_font.setPointSize(11)
+        painter.setFont(value_font)
+        painter.setPen(text_color)
+        value_text = "%d %s" % (round(self._value), self.unit)
+        painter.drawText(rect.adjusted(0, 0, 0, -8), Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom, value_text)
 
 
 class SerialTransport:
@@ -514,7 +643,6 @@ class ToolCNCControl(AppTool):
         self.ui.connect_btn.clicked.connect(self.on_connect_clicked)
         self.ui.test_connection_btn.clicked.connect(self.on_test_connection_clicked)
         self.ui.disconnect_btn.clicked.connect(self.disconnect)
-        self.ui.open_connection_btn.clicked.connect(self.on_toolbar_connection_clicked)
         self.ui.com_refresh.clicked.connect(self.on_refresh_ports)
         self.ui.connection_mode_combo.currentIndexChanged.connect(self.ui.on_connection_mode_changed)
         self.ui.profile_combo.currentIndexChanged.connect(self.on_profile_changed)
@@ -537,9 +665,15 @@ class ToolCNCControl(AppTool):
         self.ui.feed_plus.clicked.connect(lambda: self.send_profile_command("feed_plus"))
         self.ui.feed_minus.clicked.connect(lambda: self.send_profile_command("feed_minus"))
         self.ui.feed_reset.clicked.connect(lambda: self.send_profile_command("feed_reset"))
+        self.ui.feed_set_btn.clicked.connect(lambda: self.on_set_override("feed_set", self.ui.feed_override_entry))
         self.ui.spindle_plus.clicked.connect(lambda: self.send_profile_command("spindle_plus"))
         self.ui.spindle_minus.clicked.connect(lambda: self.send_profile_command("spindle_minus"))
         self.ui.spindle_reset.clicked.connect(lambda: self.send_profile_command("spindle_reset"))
+        self.ui.spindle_override_set_btn.clicked.connect(
+            lambda: self.on_set_override("spindle_override_set", self.ui.spindle_override_entry)
+        )
+        self.ui.spindle_set_btn.clicked.connect(self.on_set_spindle_rpm)
+        self.ui.spindle_stop_btn.clicked.connect(lambda: self.send_profile_command("spindle_stop"))
 
         self.ui.macro_probe.clicked.connect(lambda: self.send_profile_command("probe_z"))
         self.ui.macro_laser.clicked.connect(self.on_toggle_laser)
@@ -856,6 +990,34 @@ class ToolCNCControl(AppTool):
         command = template.format(axis=axis, distance=distance, feed=feed)
         self.queue_commands(command.splitlines())
 
+    def on_set_spindle_rpm(self):
+        try:
+            rpm = int(self.ui.spindle_rpm.value())
+        except Exception:
+            rpm = 0
+
+        template = self.current_profile().get("spindle_set", "")
+        if not template:
+            self.append_console_sig.emit(f"spindle_set: {_('not supported by selected profile')}", "warn")
+            return
+
+        command = template.format(rpm=rpm)
+        self.queue_commands(command.splitlines())
+
+    def on_set_override(self, key, widget):
+        try:
+            percent = int(widget.value())
+        except Exception:
+            percent = 100
+
+        template = self.current_profile().get(key, "")
+        if not template:
+            self.append_console_sig.emit(f"{key}: {_('not supported by selected profile')}", "warn")
+            return
+
+        command = template.format(percent=percent)
+        self.queue_commands(command.splitlines())
+
     def on_toggle_laser(self):
         if self.ui.macro_laser.isChecked():
             self.send_profile_command("laser_on")
@@ -1049,6 +1211,15 @@ class ToolCNCControl(AppTool):
             values = (data["FS"].split(",") + ["0", "0"])[:2]
             self.ui.feed_value.setText(values[0])
             self.ui.spindle_value.setText(values[1])
+            try:
+                feed = float(values[0])
+            except ValueError:
+                feed = 0.0
+            try:
+                spindle = float(values[1])
+            except ValueError:
+                spindle = 0.0
+            self.ui.update_dashboard_gauges(feed, spindle)
 
         if "Ov" in data:
             values = (data["Ov"].split(",") + ["100", "100", "100"])[:3]
@@ -1272,6 +1443,7 @@ class CNCControlUI:
         self.main_lay.setSpacing(8)
 
         self.build_connection_dialog()
+        self.build_connection_state_cache()
         self.build_work_header()
         self.build_tabs()
         self.on_connection_mode_changed()
@@ -1286,6 +1458,7 @@ class CNCControlUI:
         highlight = palette.color(QtGui.QPalette.ColorRole.Highlight).name()
         hover = palette.color(QtGui.QPalette.ColorRole.AlternateBase).name()
         selected = palette.color(QtGui.QPalette.ColorRole.Highlight).lighter(175).name()
+        arrow_icon = os.path.join(self.app.resource_location, "down-arrow32.png").replace("\\", "/")
 
         return f"""
             QWidget#cnc_root {{
@@ -1441,14 +1614,24 @@ class CNCControlUI:
                 padding: 3px 6px;
                 min-height: 28px;
             }}
+            QComboBox#cnc_input {{
+                padding-right: 28px;
+            }}
             QComboBox#cnc_input:focus,
             QLineEdit#cnc_input:focus,
             QSpinBox#cnc_input:focus {{
                 border-color: {highlight};
             }}
             QComboBox#cnc_input::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
                 border-left: 1px solid {mid};
-                width: 24px;
+                width: 26px;
+            }}
+            QComboBox#cnc_input::down-arrow {{
+                image: url({arrow_icon});
+                width: 10px;
+                height: 10px;
             }}
             QProgressBar#cnc_progress {{
                 border: 1px solid {mid};
@@ -1488,13 +1671,35 @@ class CNCControlUI:
             button.setToolTip(tooltip)
         return button
 
+    def setup_icon_button(self, button, icon_file=None, tooltip=None):
+        self.setup_button(button, icon_file, tooltip, text_beside=False)
+        button.setFixedSize(34, 32)
+        button.setText(button.text())
+        return button
+
     def setup_input(self, widget):
         widget.setObjectName("cnc_input")
+        return widget
+
+    def setup_connection_input(self, widget, min_width=None, fixed_width=None):
+        self.setup_input(widget)
+        widget.setFixedHeight(34)
+        widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        if min_width is not None:
+            widget.setMinimumWidth(min_width)
+        if fixed_width is not None:
+            widget.setFixedWidth(fixed_width)
         return widget
 
     def field_label(self, text):
         label = FCLabel(text)
         label.setObjectName("cnc_field_label")
+        return label
+
+    def connection_field_label(self, text):
+        label = self.field_label(text)
+        label.setFixedHeight(34)
+        label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         return label
 
     def field_cell(self, label_text, widget):
@@ -1529,17 +1734,39 @@ class CNCControlUI:
         lay.addWidget(self.help_button(tooltip))
         return frame
 
+    def override_stepper(self, minus_btn, reset_btn, plus_btn):
+        lay = QtWidgets.QHBoxLayout()
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        lay.addWidget(minus_btn)
+        lay.addWidget(reset_btn)
+        lay.addWidget(plus_btn)
+        lay.addStretch()
+        return lay
+
     def build_work_header(self):
         header = QtWidgets.QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(8)
         self.main_lay.addLayout(header)
 
-        connection_panel = self.build_connection_panel()
-        connection_panel.setMinimumWidth(260)
-        connection_panel.setMaximumWidth(340)
-        connection_panel.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Preferred)
-        header.addWidget(connection_panel, 0, Qt.AlignmentFlag.AlignTop)
+        feed_panel, feed_body = self.create_panel(_("Feed"))
+        feed_panel.setMinimumWidth(170)
+        feed_panel.setMaximumWidth(210)
+        feed_panel.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Expanding)
+        self.feed_gauge = DashboardGauge(_("Feed"), "mm/min", 6000, "#31b0d5")
+        self.feed_gauge.setToolTip(_("Live feed rate from controller status."))
+        self.build_dashboard_gauge(feed_body, self.feed_gauge)
+        header.addWidget(feed_panel)
+
+        spindle_panel, spindle_body = self.create_panel(_("Spindle"))
+        spindle_panel.setMinimumWidth(170)
+        spindle_panel.setMaximumWidth(210)
+        spindle_panel.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Expanding)
+        self.spindle_gauge = DashboardGauge(_("Spindle"), "RPM", 24000, "#d9534f")
+        self.spindle_gauge.setToolTip(_("Live spindle speed from controller status."))
+        self.build_dashboard_gauge(spindle_body, self.spindle_gauge)
+        header.addWidget(spindle_panel)
 
         job_col = QtWidgets.QVBoxLayout()
         job_col.setContentsMargins(0, 0, 0, 0)
@@ -1555,16 +1782,29 @@ class CNCControlUI:
         job_col.addWidget(sd_panel)
         job_col.addStretch()
 
+    def build_dashboard_gauge(self, body, gauge):
+        gauge.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+        body.addWidget(gauge, 1)
+
+    def build_connection_state_cache(self):
+        self.state_indicator = QtWidgets.QFrame()
+        self.state_indicator.setFixedSize(12, 12)
+        self.state_indicator.setStyleSheet("background-color: #999999; border-radius: 6px;")
+        self.state_label = FCLabel("OFFLINE", bold=True)
+        self.connection_desc = FCLabel(_("Offline"), color="#777777")
+        self.controller_info_label = FCLabel("", color="#777777")
+
     def build_connection_dialog(self):
         self.connection_dialog = QtWidgets.QDialog(self.app.ui)
         self.connection_dialog.setWindowTitle(_("Connection"))
         self.connection_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.connection_dialog.setMinimumWidth(520)
+        self.connection_dialog.setMinimumWidth(620)
         self.connection_dialog.setStyleSheet(self.stylesheet())
 
         dialog_lay = QtWidgets.QVBoxLayout(self.connection_dialog)
         dialog_lay.setContentsMargins(10, 10, 10, 10)
         dialog_lay.setSpacing(8)
+        dialog_lay.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetFixedSize)
 
         self.dialog_status_frame = QtWidgets.QFrame()
         self.dialog_status_frame.setObjectName("cnc_strip")
@@ -1584,30 +1824,29 @@ class CNCControlUI:
         fields_lay.setSpacing(8)
 
         self.connection_mode_combo = FCComboBox()
-        self.setup_input(self.connection_mode_combo)
-        self.connection_mode_combo.setMinimumWidth(185)
+        self.setup_connection_input(self.connection_mode_combo, min_width=210)
         self.connection_mode_combo.addItem(_("COM / USB"), "serial")
         self.connection_mode_combo.addItem(_("WiFi TCP/Telnet"), "tcp")
         self.connection_mode_combo.addItem(_("FluidNC Web"), "http")
 
         self.profile_combo = FCComboBox()
-        self.setup_input(self.profile_combo)
-        self.profile_combo.setMinimumWidth(185)
+        self.setup_connection_input(self.profile_combo, min_width=210)
         for key, profile in CNC_PROFILES.items():
             self.profile_combo.addItem(profile["label"], key)
 
-        selector_lay = QtWidgets.QGridLayout()
-        selector_lay.setHorizontalSpacing(8)
-        selector_lay.setVerticalSpacing(5)
-        selector_lay.addWidget(self.field_label(_("Mode")), 0, 0)
-        selector_lay.addWidget(self.connection_mode_combo, 0, 1)
-        selector_lay.addWidget(self.field_label(_("Controller")), 0, 2)
-        selector_lay.addWidget(self.profile_combo, 0, 3)
-        selector_lay.setColumnStretch(1, 1)
-        selector_lay.setColumnStretch(3, 1)
+        selector_lay = QtWidgets.QHBoxLayout()
+        selector_lay.setSpacing(8)
+        selector_lay.addWidget(self.connection_field_label(_("Mode")))
+        selector_lay.addWidget(self.connection_mode_combo, 1)
+        selector_lay.addWidget(self.connection_field_label(_("Controller")))
+        selector_lay.addWidget(self.profile_combo, 1)
         fields_lay.addLayout(selector_lay)
 
         self.connection_stack = QtWidgets.QStackedWidget()
+        self.connection_stack.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed
+        )
         fields_lay.addWidget(self.connection_stack)
         dialog_lay.addWidget(self.connection_fields_widget)
 
@@ -1637,37 +1876,9 @@ class CNCControlUI:
         self.build_tcp_connection_page()
         self.build_http_connection_page()
 
-    def build_connection_panel(self):
-        panel, body = self.create_panel(_("Connection"))
-
-        self.state_indicator = QtWidgets.QFrame()
-        self.state_indicator.setFixedSize(12, 12)
-        self.state_indicator.setStyleSheet("background-color: #999999; border-radius: 6px;")
-        self.state_label = FCLabel("OFFLINE", bold=True)
-        self.connection_desc = FCLabel(_("Offline"), color="#777777")
-        self.controller_info_label = FCLabel("", color="#777777")
-
-        self.status_frame = QtWidgets.QFrame()
-        self.status_frame.setObjectName("cnc_status_pill")
-        status_lay = QtWidgets.QHBoxLayout(self.status_frame)
-        status_lay.setContentsMargins(8, 5, 8, 5)
-        status_lay.setSpacing(5)
-        status_lay.addWidget(self.state_indicator)
-        status_lay.addWidget(self.state_label)
-        status_lay.addWidget(self.connection_desc)
-        status_lay.addWidget(self.controller_info_label, 1)
-
-        self.open_connection_btn = FluidStyleButton(_("Connect"), "#337ab7", "#286090")
-        self.setup_button(self.open_connection_btn, "link32.png", _("Open CNC connection."))
-        self.open_connection_btn.setMinimumHeight(34)
-
-        body.addWidget(self.status_frame)
-        body.addWidget(self.open_connection_btn)
-
-        return panel
-
     def show_connection_dialog(self, connected=False):
         self.sync_connection_dialog(connected)
+        self.connection_dialog.adjustSize()
         self.connection_dialog.show()
         self.connection_dialog.raise_()
         self.connection_dialog.activateWindow()
@@ -1694,119 +1905,78 @@ class CNCControlUI:
         self.test_connection_btn.setVisible(not connected)
         self.disconnect_btn.setVisible(connected)
         self.com_refresh.setEnabled(not connected and self.connection_mode_combo.currentData() == "serial")
-        self.open_connection_btn.setText(_("Connected") if connected else _("Connect"))
 
     def set_connection_actions_enabled(self, enabled):
         self.connect_btn.setEnabled(enabled)
         self.test_connection_btn.setEnabled(enabled)
         self.disconnect_btn.setEnabled(enabled)
-        self.open_connection_btn.setEnabled(enabled)
         self.com_refresh.setEnabled(enabled and self.connection_mode_combo.currentData() == "serial")
 
     def build_serial_connection_page(self):
         page = QtWidgets.QWidget()
-        lay = QtWidgets.QVBoxLayout(page)
+        lay = QtWidgets.QHBoxLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(6)
+        lay.setSpacing(8)
 
         self.com_port = FCComboBox()
-        self.setup_input(self.com_port)
-        self.com_port.setFixedWidth(360)
+        self.setup_connection_input(self.com_port, min_width=320)
         self.com_port.setEditable(True)
         self.baudrate_combo = FCComboBox()
-        self.setup_input(self.baudrate_combo)
-        self.baudrate_combo.setFixedWidth(360)
+        self.setup_connection_input(self.baudrate_combo, fixed_width=135)
         for baud in ["115200", "250000", "230400", "57600", "38400", "19200", "9600"]:
             self.baudrate_combo.addItem(baud)
         self.baudrate_combo.setCurrentText("115200")
 
-        port_lay = QtWidgets.QHBoxLayout()
-        port_lay.setSpacing(8)
-        port_lay.addWidget(self.field_label(_("Port")))
-        port_lay.addWidget(self.com_port)
-        port_lay.addStretch()
-
-        baud_lay = QtWidgets.QHBoxLayout()
-        baud_lay.setSpacing(8)
-        baud_lay.addWidget(self.field_label(_("Baud")))
-        baud_lay.addWidget(self.baudrate_combo)
-        baud_lay.addStretch()
-
-        lay.addLayout(port_lay)
-        lay.addLayout(baud_lay)
+        lay.addWidget(self.connection_field_label(_("Port")))
+        lay.addWidget(self.com_port, 1)
+        lay.addWidget(self.connection_field_label(_("Baud")))
+        lay.addWidget(self.baudrate_combo)
         self.connection_stack.addWidget(page)
 
     def build_tcp_connection_page(self):
         page = QtWidgets.QWidget()
-        lay = QtWidgets.QVBoxLayout(page)
+        lay = QtWidgets.QHBoxLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(6)
+        lay.setSpacing(8)
 
         self.tcp_host = FCEntry()
-        self.setup_input(self.tcp_host)
-        self.tcp_host.setFixedWidth(360)
+        self.setup_connection_input(self.tcp_host, min_width=340)
         self.tcp_host.setPlaceholderText("192.168.0.10")
         self.tcp_host.setText("fluidnc.local")
         self.tcp_port = FCSpinner()
-        self.setup_input(self.tcp_port)
-        self.tcp_port.setFixedWidth(360)
+        self.setup_connection_input(self.tcp_port, fixed_width=115)
         self.tcp_port.set_range(1, 65535)
         self.tcp_port.setValue(23)
 
-        host_lay = QtWidgets.QHBoxLayout()
-        host_lay.setSpacing(8)
-        host_lay.addWidget(self.field_label(_("Host")))
-        host_lay.addWidget(self.tcp_host, 1)
-
-        port_lay = QtWidgets.QHBoxLayout()
-        port_lay.setSpacing(8)
-        port_lay.addWidget(self.field_label(_("Port")))
-        port_lay.addWidget(self.tcp_port)
-        port_lay.addStretch()
-
-        lay.addLayout(host_lay)
-        lay.addLayout(port_lay)
+        lay.addWidget(self.connection_field_label(_("Host")))
+        lay.addWidget(self.tcp_host, 1)
+        lay.addWidget(self.connection_field_label(_("Port")))
+        lay.addWidget(self.tcp_port)
         self.connection_stack.addWidget(page)
 
     def build_http_connection_page(self):
         page = QtWidgets.QWidget()
-        lay = QtWidgets.QVBoxLayout(page)
+        lay = QtWidgets.QGridLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(6)
+        lay.setHorizontalSpacing(8)
+        lay.setVerticalSpacing(6)
 
         self.web_url = FCEntry()
-        self.setup_input(self.web_url)
-        self.web_url.setFixedWidth(360)
+        self.setup_connection_input(self.web_url, min_width=500)
         self.web_url.setText("http://fluidnc.local")
         self.web_user = FCEntry()
-        self.setup_input(self.web_user)
-        self.web_user.setFixedWidth(360)
+        self.setup_connection_input(self.web_user, min_width=500)
         self.web_password = FCEntry()
-        self.setup_input(self.web_password)
-        self.web_password.setFixedWidth(360)
+        self.setup_connection_input(self.web_password, min_width=500)
         self.web_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
 
-        url_lay = QtWidgets.QHBoxLayout()
-        url_lay.setSpacing(8)
-        url_lay.addWidget(self.field_label(_("URL")))
-        url_lay.addWidget(self.web_url)
-        url_lay.addStretch()
-
-        auth_lay = QtWidgets.QHBoxLayout()
-        auth_lay.setSpacing(8)
-        auth_lay.addWidget(self.field_label(_("User")))
-        auth_lay.addWidget(self.web_user)
-        auth_lay.addStretch()
-
-        password_lay = QtWidgets.QHBoxLayout()
-        password_lay.setSpacing(8)
-        password_lay.addWidget(self.field_label(_("Password")))
-        password_lay.addWidget(self.web_password)
-        password_lay.addStretch()
-
-        lay.addLayout(url_lay)
-        lay.addLayout(auth_lay)
-        lay.addLayout(password_lay)
+        lay.addWidget(self.connection_field_label(_("URL")), 0, 0)
+        lay.addWidget(self.web_url, 0, 1)
+        lay.addWidget(self.connection_field_label(_("User")), 1, 0)
+        lay.addWidget(self.web_user, 1, 1)
+        lay.addWidget(self.connection_field_label(_("Password")), 2, 0)
+        lay.addWidget(self.web_password, 2, 1)
+        lay.setColumnStretch(1, 1)
         self.connection_stack.addWidget(page)
 
     def build_tabs(self):
@@ -1900,14 +2070,13 @@ class CNCControlUI:
         return zero, work, machine
 
     def build_jog(self, body):
-        settings_frame = QtWidgets.QFrame()
-        settings_frame.setObjectName("cnc_strip")
-        settings_lay = QtWidgets.QHBoxLayout(settings_frame)
-        settings_lay.setContentsMargins(8, 6, 8, 6)
+        settings_lay = QtWidgets.QHBoxLayout()
+        settings_lay.setContentsMargins(0, 0, 0, 0)
         settings_lay.setSpacing(8)
 
         step_frame = QtWidgets.QFrame()
         step_frame.setObjectName("cnc_segment")
+        step_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         step_lay = QtWidgets.QHBoxLayout(step_frame)
         step_lay.setContentsMargins(2, 2, 2, 2)
         step_lay.setSpacing(2)
@@ -1929,7 +2098,7 @@ class CNCControlUI:
 
         self.jog_feed = FCSpinner()
         self.setup_input(self.jog_feed)
-        self.jog_feed.setFixedWidth(122)
+        self.jog_feed.setFixedSize(150, 34)
         self.jog_feed.set_range(1, 60000)
         self.jog_feed.setValue(1000)
         self.jog_feed.setSuffix(" mm/min")
@@ -1937,18 +2106,21 @@ class CNCControlUI:
 
         settings_lay.addWidget(self.field_label(_("Step")))
         settings_lay.addWidget(step_frame)
-        settings_lay.addSpacing(12)
+        settings_lay.addSpacing(8)
         settings_lay.addWidget(self.field_label(_("Feed")))
         settings_lay.addWidget(self.jog_feed)
         settings_lay.addStretch()
-        body.addWidget(settings_frame)
+        body.addLayout(settings_lay)
 
         jog_wrap = QtWidgets.QHBoxLayout()
-        jog_wrap.setSpacing(10)
+        jog_wrap.setContentsMargins(0, 0, 0, 0)
+        jog_wrap.setSpacing(8)
         body.addLayout(jog_wrap)
 
         xy_pad = QtWidgets.QFrame()
         xy_pad.setObjectName("cnc_jog_pad")
+        xy_pad.setMinimumSize(282, 218)
+        xy_pad.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         xy_lay = QtWidgets.QGridLayout(xy_pad)
         xy_lay.setContentsMargins(12, 10, 12, 10)
         xy_lay.setHorizontalSpacing(8)
@@ -1956,6 +2128,7 @@ class CNCControlUI:
 
         z_pad = QtWidgets.QFrame()
         z_pad.setObjectName("cnc_jog_pad")
+        z_pad.setFixedSize(108, 218)
         z_lay = QtWidgets.QVBoxLayout(z_pad)
         z_lay.setContentsMargins(12, 10, 12, 10)
         z_lay.setSpacing(7)
@@ -2000,10 +2173,8 @@ class CNCControlUI:
         z_lay.addWidget(self.jog_z_down)
         z_lay.addStretch()
 
-        jog_wrap.addStretch()
-        jog_wrap.addWidget(xy_pad)
+        jog_wrap.addWidget(xy_pad, 1)
         jog_wrap.addWidget(z_pad)
-        jog_wrap.addStretch()
 
     def build_system(self, body):
         values = QtWidgets.QGridLayout()
@@ -2031,21 +2202,60 @@ class CNCControlUI:
         ov_grid.setSpacing(6)
         body.addLayout(ov_grid)
 
-        self.feed_minus = FluidStyleButton("-", "#ffffff", "#f5f5f5", "#333333")
-        self.feed_reset = FluidStyleButton("100%", "#ffffff", "#f5f5f5", "#333333")
-        self.feed_plus = FluidStyleButton("+", "#ffffff", "#f5f5f5", "#333333")
-        self.spindle_minus = FluidStyleButton("-", "#ffffff", "#f5f5f5", "#333333")
-        self.spindle_reset = FluidStyleButton("100%", "#ffffff", "#f5f5f5", "#333333")
-        self.spindle_plus = FluidStyleButton("+", "#ffffff", "#f5f5f5", "#333333")
+        self.feed_override_entry = FCSpinner()
+        self.setup_connection_input(self.feed_override_entry, fixed_width=112)
+        self.feed_override_entry.set_range(10, 200)
+        self.feed_override_entry.setValue(100)
+        self.feed_override_entry.setSuffix("%")
+        self.feed_override_entry.setToolTip(_("Target feed override percent."))
+        self.feed_set_btn = FluidStyleButton("SET", "#337ab7", "#286090")
+        self.setup_button(self.feed_set_btn, "apply32.png", _("Set feed override percent."))
 
-        ov_grid.addWidget(FCLabel(_("FEED"), bold=True), 0, 0)
-        ov_grid.addWidget(self.feed_minus, 0, 1)
-        ov_grid.addWidget(self.feed_reset, 0, 2)
-        ov_grid.addWidget(self.feed_plus, 0, 3)
-        ov_grid.addWidget(FCLabel(_("SPINDLE"), bold=True), 1, 0)
-        ov_grid.addWidget(self.spindle_minus, 1, 1)
-        ov_grid.addWidget(self.spindle_reset, 1, 2)
-        ov_grid.addWidget(self.spindle_plus, 1, 3)
+        self.spindle_override_entry = FCSpinner()
+        self.setup_connection_input(self.spindle_override_entry, fixed_width=112)
+        self.spindle_override_entry.set_range(10, 200)
+        self.spindle_override_entry.setValue(100)
+        self.spindle_override_entry.setSuffix("%")
+        self.spindle_override_entry.setToolTip(_("Target spindle override percent."))
+        self.spindle_override_set_btn = FluidStyleButton("SET", "#337ab7", "#286090")
+        self.setup_button(self.spindle_override_set_btn, "apply32.png", _("Set spindle override percent."))
+
+        self.feed_minus = FluidStyleButton("-")
+        self.feed_reset = FluidStyleButton("100")
+        self.feed_plus = FluidStyleButton("+")
+        self.spindle_minus = FluidStyleButton("-")
+        self.spindle_reset = FluidStyleButton("100")
+        self.spindle_plus = FluidStyleButton("+")
+        self.setup_icon_button(self.feed_minus, None, _("Decrease feed override."))
+        self.setup_icon_button(self.feed_reset, None, _("Reset feed override."))
+        self.setup_icon_button(self.feed_plus, None, _("Increase feed override."))
+        self.setup_icon_button(self.spindle_minus, None, _("Decrease spindle override."))
+        self.setup_icon_button(self.spindle_reset, None, _("Reset spindle override."))
+        self.setup_icon_button(self.spindle_plus, None, _("Increase spindle override."))
+
+        self.spindle_rpm = FCSpinner()
+        self.setup_connection_input(self.spindle_rpm, fixed_width=150)
+        self.spindle_rpm.set_range(0, 60000)
+        self.spindle_rpm.setValue(12000)
+        self.spindle_rpm.setSuffix(" RPM")
+        self.spindle_rpm.setToolTip(_("Target spindle RPM."))
+        self.spindle_set_btn = FluidStyleButton("SET RPM", "#337ab7", "#286090")
+        self.spindle_stop_btn = FluidStyleButton("STOP", "#d9534f", "#c9302c")
+        self.setup_button(self.spindle_set_btn, "apply32.png", _("Set spindle speed with the selected RPM."))
+        self.setup_button(self.spindle_stop_btn, "power16.png", _("Stop spindle."))
+
+        ov_grid.addWidget(FCLabel(_("RPM"), bold=True), 0, 0)
+        ov_grid.addWidget(self.spindle_rpm, 0, 1)
+        ov_grid.addWidget(self.spindle_set_btn, 0, 2)
+        ov_grid.addWidget(self.spindle_stop_btn, 0, 3)
+        ov_grid.addWidget(FCLabel(_("FEED"), bold=True), 1, 0)
+        ov_grid.addWidget(self.feed_override_entry, 1, 1)
+        ov_grid.addWidget(self.feed_set_btn, 1, 2)
+        ov_grid.addLayout(self.override_stepper(self.feed_minus, self.feed_reset, self.feed_plus), 1, 3)
+        ov_grid.addWidget(FCLabel(_("SPINDLE %"), bold=True), 2, 0)
+        ov_grid.addWidget(self.spindle_override_entry, 2, 1)
+        ov_grid.addWidget(self.spindle_override_set_btn, 2, 2)
+        ov_grid.addLayout(self.override_stepper(self.spindle_minus, self.spindle_reset, self.spindle_plus), 2, 3)
 
         sys_lay = QtWidgets.QGridLayout()
         sys_lay.setSpacing(6)
@@ -2255,6 +2465,7 @@ class CNCControlUI:
         self.connection_stack.setCurrentIndex(index)
 
         mode = self.connection_mode_combo.currentData()
+        self.connection_stack.setFixedHeight(120 if mode == "http" else 38)
         self.com_refresh.setVisible(mode == "serial")
         self.com_refresh.setEnabled(mode == "serial")
         if mode == "http":
@@ -2262,12 +2473,14 @@ class CNCControlUI:
             if fluid_idx >= 0:
                 self.profile_combo.setCurrentIndex(fluid_idx)
         self.sync_connection_dialog(False)
+        self.connection_dialog.adjustSize()
         self.set_file_tools_enabled(True)
 
     def set_connected(self, connected):
         self.state_label.setText("IDLE" if connected else "OFFLINE")
         if not connected:
             self.state_indicator.setStyleSheet("background-color: #999999; border-radius: 6px;")
+            self.update_dashboard_gauges(0, 0)
         self.sync_connection_dialog(connected)
 
         controls = [
@@ -2275,8 +2488,10 @@ class CNCControlUI:
             self.jog_up, self.jog_down, self.jog_left, self.jog_right, self.jog_z_up, self.jog_z_down,
             self.zero_x, self.zero_y, self.zero_z, self.zero_all, self.home_btn, self.unlock_btn,
             self.reset_btn, self.estop_btn, self.resume_btn, self.cfg_dump, self.info_btn,
-            self.sd_list_btn, self.run_sd_btn, self.feed_plus, self.feed_minus, self.feed_reset,
-            self.spindle_plus, self.spindle_minus, self.spindle_reset, self.macro_probe, self.macro_laser,
+            self.sd_list_btn, self.run_sd_btn, self.feed_override_entry, self.feed_set_btn,
+            self.feed_plus, self.feed_minus, self.feed_reset, self.spindle_override_entry,
+            self.spindle_override_set_btn, self.spindle_plus, self.spindle_minus, self.spindle_reset,
+            self.spindle_rpm, self.spindle_set_btn, self.spindle_stop_btn, self.macro_probe, self.macro_laser,
             self.command_entry, self.refresh_jobs_btn
         ]
         for control in controls:
@@ -2358,6 +2573,10 @@ class CNCControlUI:
         details = " | ".join(value for value in [hostname, target] if value)
         self.controller_info_label.setText(details)
         self.sync_connection_dialog(self.disconnect_btn.isVisible())
+
+    def update_dashboard_gauges(self, feed=0.0, spindle=0.0):
+        self.feed_gauge.set_value(feed)
+        self.spindle_gauge.set_value(spindle)
 
     def set_busy(self, busy, message):
         self.busy_label.setText(message if busy else "")
