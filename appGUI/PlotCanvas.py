@@ -216,7 +216,7 @@ class PlotCanvas(QtCore.QObject, VisPyCanvas):
 
         self.shape_collections = []
 
-        self.shape_collection = self.new_shape_collection()
+        self.shape_collection = self.new_shape_collection(layers=4)
         self.fcapp.pool_recreated.connect(self.on_pool_recreated)
         self.text_collection = self.new_text_collection()
 

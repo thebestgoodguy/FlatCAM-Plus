@@ -1476,7 +1476,7 @@ class GeometryObject(FlatCAMObj, Geometry):
 
         return factor
 
-    def plot_element(self, element, color=None, visible=None):
+    def plot_element(self, element, color=None, visible=None, layer=3):
 
         if color is None:
             color = '#FF0000FF'
@@ -1485,13 +1485,13 @@ class GeometryObject(FlatCAMObj, Geometry):
         try:
             if isinstance(element, (MultiPolygon, MultiLineString)):
                 for sub_el in element.geoms:
-                    self.plot_element(sub_el, color=color)
+                    self.plot_element(sub_el, color=color, visible=visible, layer=layer)
             else:
                 for sub_el in element:
-                    self.plot_element(sub_el, color=color)
+                    self.plot_element(sub_el, color=color, visible=visible, layer=layer)
         except TypeError:  # Element is not iterable...
             # if self.app.use_3d_engine:
-            self.add_shape(shape=element, color=color, visible=visible, layer=0)
+            self.add_shape(shape=element, color=color, visible=visible, layer=layer)
 
     def plot(self, visible=None, kind=None, plot_tool=None):
         """
