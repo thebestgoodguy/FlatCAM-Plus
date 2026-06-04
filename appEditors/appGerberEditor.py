@@ -3293,25 +3293,28 @@ class SelectEditorGrb(QtCore.QObject, DrawTool):
                     for chunk, list30 in enumerate(geo_list):
                         self.results.append(
                             editor_obj.pool.apply_async(
-                                self.check_intersection, args=(ap_key, chunk, list30, point))
+                                self.check_intersection, args=(
+                                    ap_key, chunk, list30, point, editor_obj._selection_pick_tolerance()
+                                ))
                         )
 
                 output = []
                 for p in self.results:
                     output.append(p.get())
 
-                for ret_val in output:
-                    if ret_val:
-                        k = ret_val[0]
-                        part = ret_val[1]
-                        idx = ret_val[2] + (part * n_chunks)
-                        shape_stored = editor_obj.storage_dict[k]['geometry'][idx]
+                hits = [ret_val for ret_val in output if ret_val]
+                if hits:
+                    best_hit = min(hits, key=lambda v: (v[3], v[4], v[0], v[1], v[2]))
+                    k = best_hit[0]
+                    part = best_hit[1]
+                    idx = best_hit[2] + (part * n_chunks)
+                    shape_stored = editor_obj.storage_dict[k]['geometry'][idx]
 
-                        if shape_stored in editor_obj.selected:
-                            editor_obj.selected.remove(shape_stored)
-                        else:
-                            # add the object to the selected shapes
-                            editor_obj.selected.append(shape_stored)
+                    if shape_stored in editor_obj.selected:
+                        editor_obj.selected.remove(shape_stored)
+                    else:
+                        # add the object to the selected shapes
+                        editor_obj.selected.append(shape_stored)
 
                 self.draw_app.update_ui_sig.emit()
 
@@ -3320,47 +3323,82 @@ class SelectEditorGrb(QtCore.QObject, DrawTool):
         self.draw_app.app.worker_task.emit({'fcn': job_thread, 'params': [self.draw_app]})
 
     @staticmethod
-    def check_intersection(ap_key, chunk, geo_storage, point):
+    def check_intersection(ap_key, chunk, geo_storage, point, pick_tolerance):
+        click_pt = Point(point)
+        best_hit = None
+
         for idx, shape_stored in enumerate(geo_storage):
             if 'solid' in shape_stored.geo:
                 geometric_data = shape_stored.geo['solid']
-                if Point(point).intersects(geometric_data):
-                    return ap_key, chunk, idx
+                if geometric_data is None or geometric_data.is_empty:
+                    continue
+
+                follow_geo = shape_stored.geo.get('follow')
+                if follow_geo is not None and not follow_geo.is_empty:
+                    hit_distance = click_pt.distance(follow_geo)
+                else:
+                    hit_distance = click_pt.distance(geometric_data)
+
+                solid_distance = click_pt.distance(geometric_data)
+                if solid_distance > pick_tolerance and hit_distance > pick_tolerance:
+                    continue
+
+                hit_area = getattr(geometric_data, 'area', 0.0)
+                candidate = (ap_key, chunk, idx, hit_distance, hit_area)
+                if best_hit is None or (candidate[3], candidate[4], candidate[0], candidate[1], candidate[2]) < \
+                        (best_hit[3], best_hit[4], best_hit[0], best_hit[1], best_hit[2]):
+                    best_hit = candidate
+
+        return best_hit
 
     def after_selection(self):
         # ######################################################################################################
         # select the aperture in the Apertures Table that is associated with the selected shape
         # ######################################################################################################
         self.sel_aperture.clear()
-        self.draw_app.ui.apertures_table.clearSelection()
 
         for shape_s in self.draw_app.selected:
             for storage in self.draw_app.storage_dict:
                 if shape_s in self.draw_app.storage_dict[storage]['geometry']:
                     self.sel_aperture.add(storage)
 
+        aperture_table = self.draw_app.ui.apertures_table
+        table_selection_model = aperture_table.selectionModel()
+
+        def disconnect_all(signal, slot):
+            while True:
+                try:
+                    signal.disconnect(slot)
+                except (TypeError, RuntimeError):
+                    break
+
         # disconnect signal when clicking in the table
+        disconnect_all(aperture_table.cellPressed, self.draw_app.on_row_selected)
+        disconnect_all(table_selection_model.selectionChanged, self.draw_app.on_table_selection)
+
+        table_blocker = QtCore.QSignalBlocker(aperture_table)
+        selection_blocker = QtCore.QSignalBlocker(table_selection_model) if table_selection_model is not None else None
+
+        # Keep canvas selection independent from aperture-row selection. For Gerbers with a single aperture row,
+        # selecting that row means selecting every shape drawn with the aperture.
+        self.draw_app._syncing_aperture_table_selection = True
         try:
-            self.draw_app.ui.apertures_table.cellPressed.disconnect(self.draw_app.on_row_selected)
-        except Exception as e:
-            log.error("AppGerberEditor.SelectEditorGrb.click_release() --> %s" % str(e))
-        try:
-            self.draw_app.ui.apertures_table.selectionModel().selectionChanged.disconnect(
-                self.draw_app.on_table_selection)
-        except Exception as e:
-            log.error("AppGerberEditor.SelectEditorGrb.click_release() selectionChanged.disconnect() --> %s" % str(e))
-        # actual row selection is done here
-        # self.draw_app.ui.apertures_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        for aper in self.sel_aperture:
-            for row in range(self.draw_app.ui.apertures_table.rowCount()):
-                if str(aper) == self.draw_app.ui.apertures_table.item(row, 1).text():
-                    if row not in set(idx.row() for idx in self.draw_app.ui.apertures_table.selectedIndexes()):
-                        self.draw_app.ui.apertures_table.selectRow(row)
+            aperture_table.clearSelection()
+            for aper in self.sel_aperture:
+                for row in range(aperture_table.rowCount()):
+                    if str(aper) == aperture_table.item(row, 1).text():
                         self.draw_app.last_aperture_selected = aper
+                        break
+        finally:
+            self.draw_app._syncing_aperture_table_selection = False
+
+        del selection_blocker
+        del table_blocker
+
         # self.draw_app.ui.apertures_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         # reconnect signal when clicking in the table
-        self.draw_app.ui.apertures_table.cellPressed.connect(self.draw_app.on_row_selected)
-        self.draw_app.ui.apertures_table.selectionModel().selectionChanged.connect(self.draw_app.on_table_selection)
+        aperture_table.cellPressed.connect(self.draw_app.on_row_selected)
+        table_selection_model.selectionChanged.connect(self.draw_app.on_table_selection)
 
         # and plot all
         self.draw_app.plot_all()
@@ -3972,6 +4010,8 @@ class AppGerberEditor(QtCore.QObject):
 
         # List of selected geometric elements.
         self.selected = []
+        self._syncing_aperture_table_selection = False
+        self._mouse_down_event_pos = None
 
         self.key = None  # Currently pressed key
         self.modifiers = None
@@ -5582,6 +5622,9 @@ class AppGerberEditor(QtCore.QObject):
 
     def on_row_selected(self, row, col):
         # log.debug("AppGerberEditor.on_row_selected() --> %s" % str(inspect.stack()[1][3]))
+        if self._syncing_aperture_table_selection:
+            return
+
         key_modifier = QtWidgets.QApplication.keyboardModifiers()
         if self.app.options["global_mselect_key"] == 'Control':
             modifier_to_use = Qt.KeyboardModifier.ControlModifier
@@ -5638,6 +5681,9 @@ class AppGerberEditor(QtCore.QObject):
 
     def on_table_selection(self):
         # log.debug("AppGerberEditor.on_table_selection() -> %s" % str(inspect.stack()[1][3]))
+        if self._syncing_aperture_table_selection:
+            return False
+
         selected_rows = self.ui.apertures_table.selectionModel().selectedRows(0)
 
         if len(selected_rows) == self.ui.apertures_table.rowCount():
@@ -5759,12 +5805,13 @@ class AppGerberEditor(QtCore.QObject):
         :return: None
         """
         event_pos = event.pos if self.app.use_3d_engine else (event.xdata, event.ydata)
-        self.pos = self.canvas.translate_coords(event_pos)
+        self._mouse_down_event_pos = event_pos
+        pos_canvas = self.canvas.translate_coords(event_pos)
 
-        if self.app.grid_status():
-            self.pos = self.app.geo_editor.snap(self.pos[0], self.pos[1])
+        if self.app.grid_status() and not self._uses_raw_selection_coords():
+            self.pos = self.app.geo_editor.snap(pos_canvas[0], pos_canvas[1])
         else:
-            self.pos = (self.pos[0], self.pos[1])
+            self.pos = (pos_canvas[0], pos_canvas[1])
 
         if event.button == 1:
             self.app.ui.rel_position_label.setText("<b>Dx</b>: %.4f&nbsp;&nbsp;  <b>Dy</b>: "
@@ -5784,7 +5831,9 @@ class AppGerberEditor(QtCore.QObject):
                     return
 
                 # Dispatch event to active_tool
-                self.active_tool.click(self.app.geo_editor.snap(self.pos[0], self.pos[1]))
+                click_pos = self.pos if self._uses_raw_selection_coords() else \
+                    self.app.geo_editor.snap(self.pos[0], self.pos[1])
+                self.active_tool.click(click_pos)
 
                 # If it is a shape generating tool
                 if isinstance(self.active_tool, ShapeToolEditorGrb) and self.active_tool.complete:
@@ -5827,7 +5876,7 @@ class AppGerberEditor(QtCore.QObject):
             right_button = 3
 
         pos_canvas = self.canvas.translate_coords(event_pos)
-        if self.app.grid_status():
+        if self.app.grid_status() and not self._uses_raw_selection_coords():
             pos = self.app.geo_editor.snap(pos_canvas[0], pos_canvas[1])
         else:
             pos = (pos_canvas[0], pos_canvas[1])
@@ -5892,13 +5941,18 @@ class AppGerberEditor(QtCore.QObject):
         try:
             if event.button == 1:  # left click
                 if self.app.selection_type is not None:
-                    self.draw_selection_area_handler(self.pos, pos, self.app.selection_type)
+                    if self._is_selection_drag(event_pos=event_pos, plot_pos=pos):
+                        self.draw_selection_area_handler(self.pos, pos, self.app.selection_type)
+                    elif isinstance(self.active_tool, (SelectEditorGrb, SimplifyEditorGrb)):
+                        self.app.delete_selection_shape()
+                        self.active_tool.click_release((pos[0], pos[1]))
+
                     self.app.selection_type = None
                     if isinstance(self.active_tool, SimplifyEditorGrb):
                         self.active_tool.simp_tool.calculate_coords_vertex()
 
                 elif isinstance(self.active_tool, (SelectEditorGrb, SimplifyEditorGrb)):
-                    self.active_tool.click_release((self.pos[0], self.pos[1]))
+                    self.active_tool.click_release((pos[0], pos[1]))
 
                     # # if there are selected objects then plot them
                     # if self.selected:
@@ -5906,6 +5960,9 @@ class AppGerberEditor(QtCore.QObject):
         except Exception as e:
             self.app.log.error("AppGerberEditor.on_grb_click_release() LMB click --> Error: %s" % str(e))
             raise
+        finally:
+            if event.button == 1:
+                self._mouse_down_event_pos = None
 
     def draw_selection_area_handler(self, start_pos, end_pos, sel_type):
         """
@@ -5941,19 +5998,24 @@ class AppGerberEditor(QtCore.QObject):
         # #############################################################################################################
         # ##########  select the aperture code of the selected geometry, in the tool table  ###########################
         # #############################################################################################################
-        try:
-            self.ui.apertures_table.cellPressed.disconnect()
-        except Exception as e:
-            self.app.log.error("AppGerberEditor.draw_selection_Area_handler() --> %s" % str(e))
+        aperture_table = self.ui.apertures_table
+        table_selection_model = aperture_table.selectionModel()
+        table_blocker = QtCore.QSignalBlocker(aperture_table)
+        selection_blocker = QtCore.QSignalBlocker(table_selection_model) if table_selection_model is not None else None
 
-        self.ui.apertures_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
-        for aper in sel_aperture:
-            for row_to_sel in range(self.ui.apertures_table.rowCount()):
-                if str(aper) == self.ui.apertures_table.item(row_to_sel, 1).text():
-                    if row_to_sel not in set(index.row() for index in self.ui.apertures_table.selectedIndexes()):
-                        self.ui.apertures_table.selectRow(row_to_sel)
-                    self.last_aperture_selected = aper
-        self.ui.apertures_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
+        self._syncing_aperture_table_selection = True
+        try:
+            aperture_table.clearSelection()
+            for aper in sel_aperture:
+                for row_to_sel in range(aperture_table.rowCount()):
+                    if str(aper) == aperture_table.item(row_to_sel, 1).text():
+                        self.last_aperture_selected = aper
+                        break
+        finally:
+            self._syncing_aperture_table_selection = False
+
+        del selection_blocker
+        del table_blocker
 
         # #############################################################################################################
         # ######################### calculate vertex numbers for all selected shapes ##################################
@@ -5987,8 +6049,38 @@ class AppGerberEditor(QtCore.QObject):
 
         self.ui.area_entry.set_value(t_area)
 
-        self.ui.apertures_table.cellPressed.connect(self.on_row_selected)
         self.plot_all()
+
+    def _is_selection_drag(self, event_pos=None, plot_pos=None):
+        if self.app.use_3d_engine and self._mouse_down_event_pos is not None and event_pos is not None:
+            try:
+                dx = float(event_pos[0]) - float(self._mouse_down_event_pos[0])
+                dy = float(event_pos[1]) - float(self._mouse_down_event_pos[1])
+                return math.hypot(dx, dy) >= 5.0
+            except (IndexError, TypeError, ValueError):
+                pass
+
+        if self.pos is None or plot_pos is None:
+            return False
+
+        try:
+            dx = float(plot_pos[0]) - float(self.pos[0])
+            dy = float(plot_pos[1]) - float(self.pos[1])
+            snap_max = float(self.editor_options.get("snap_max", 0.05))
+            plot_threshold = max(snap_max, float(self.tolerance) * 5.0)
+            return math.hypot(dx, dy) >= plot_threshold
+        except (IndexError, TypeError, ValueError):
+            return False
+
+    def _selection_pick_tolerance(self):
+        try:
+            snap_max = float(self.editor_options.get("snap_max", 0.05))
+            return max(snap_max, float(self.tolerance) * 5.0)
+        except (TypeError, ValueError):
+            return 0.05
+
+    def _uses_raw_selection_coords(self):
+        return isinstance(self.active_tool, (SelectEditorGrb, SimplifyEditorGrb))
 
     def on_canvas_move(self, event):
         """
@@ -6035,7 +6127,7 @@ class AppGerberEditor(QtCore.QObject):
             return
 
         # # ## Snap coordinates
-        if self.app.grid_status():
+        if self.app.grid_status() and not self._uses_raw_selection_coords():
             x, y = self.app.geo_editor.snap(x, y)
 
             # Update cursor
@@ -6088,7 +6180,12 @@ class AppGerberEditor(QtCore.QObject):
             if isinstance(self.active_tool, RegionEditorGrb) or isinstance(self.active_tool, TrackEditorGrb):
                 self.app.selection_type = None
             else:
-                dx = pos_canvas[0] - self.pos[0]
+                if not self._is_selection_drag(event_pos=event_pos, plot_pos=(x, y)):
+                    self.app.delete_selection_shape()
+                    self.app.selection_type = None
+                    return
+
+                dx = x - self.pos[0]
                 self.app.delete_selection_shape()
                 if dx < 0:
                     self.app.draw_moving_selection_shape((self.pos[0], self.pos[1]), (x, y),

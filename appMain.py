@@ -936,9 +936,11 @@ class App(QtCore.QObject):
 
             # Storage for Hover Shapes
             self.hover_shapes = ShapeCollection(parent=self.plotcanvas.view.scene, layers=1, pool=self.pool)
+            self.hover_shapes.order = 10000
 
             # Storage for Selection shapes
             self.sel_shapes = ShapeCollection(parent=self.plotcanvas.view.scene, layers=1, pool=self.pool)
+            self.sel_shapes.order = 10001
         else:
             from appGUI.PlotCanvasLegacy import ShapeCollectionLegacy
             self.tool_shapes = ShapeCollectionLegacy(obj=self, app=self, name="tool")
