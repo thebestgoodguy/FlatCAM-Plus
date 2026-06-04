@@ -714,7 +714,7 @@ class CNCJobObject(FlatCAMObj, CNCjob):
         self.app.defaults.report_usage("cncjob_on_exportgcode_button")
 
         self.read_form()
-        name = self.app.collection.get_active().obj_options['name']
+        name = self.obj_options['name']
         save_gcode = False
 
         if 'Roland' in self.pp_excellon_name or 'Roland' in self.pp_geometry_name:
@@ -756,8 +756,7 @@ class CNCJobObject(FlatCAMObj, CNCjob):
 
         if rename_object:
             new_name = os.path.split(str(filename))[1].rpartition('.')[0]
-            self.ui.name_entry.set_value(new_name)
-            self.on_name_activate(silent=True)
+            self.rename_after_export(new_name)
 
         if self.source_file == '':
             return 'fail'
@@ -786,6 +785,42 @@ class CNCJobObject(FlatCAMObj, CNCjob):
             self.app.file_opened.emit("gcode", filename)
         self.app.file_saved.emit("gcode", filename)
         self.app.inform.emit('[success] %s: %s' % (_("File saved to"), filename))
+
+    def rename_after_export(self, new_name):
+        """
+        Rename this CNC job after exporting without assuming that the Properties UI is still alive.
+
+        Context-menu and menu exports can run after Qt has deleted the object's previous UI widget. In that case,
+        update the object model directly instead of writing through self.ui.name_entry.
+        """
+        if new_name == '' or new_name == self.obj_options["name"]:
+            return
+
+        try:
+            self.ui.name_entry.set_value(new_name)
+            self.on_name_activate(silent=True)
+            return
+        except (AttributeError, RuntimeError) as e:
+            self.app.log.debug("CNCJobObject.rename_after_export() --> UI rename unavailable: %s" % str(e))
+
+        old_name = deepcopy(self.obj_options["name"])
+
+        try:
+            try:
+                self.app.regFK.remove_keyword(old_name, update=False)
+            except ValueError:
+                pass
+            self.app.regFK.prepend_keyword(new_name)
+        except Exception as e:
+            self.app.log.debug(
+                "CNCJobObject.rename_after_export() --> Could not update auto-completer model list: %s" % str(e))
+
+        self.obj_options["name"] = new_name
+        self.default_data["name"] = new_name
+        self.app.collection.update_view(self)
+        self.app.inform.emit('[success] %s: %s %s: %s' % (
+            _("Name changed from"), str(old_name), _("to"), str(new_name)
+        ))
 
     def on_review_code_click(self):
         """
