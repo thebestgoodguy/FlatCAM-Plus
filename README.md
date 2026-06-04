@@ -6,7 +6,7 @@
 <h3 align="center">PCB CAM, pen plotting, CNC control, live placement, auto-leveling, and release-ready G-code in one Windows-focused workspace.</h3>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.9%20beta-31b0d5" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0%20beta-31b0d5" />
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" />
   <img alt="PyQt" src="https://img.shields.io/badge/UI-PyQt6-41cd52" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-lightgrey?logo=windows" />
@@ -65,7 +65,7 @@
 6. Click **Preview**, **Verify**, then **Simulate** to confirm the mapped XY path at Safe Z.
 7. Probe the board if needed, set work zero, and run the queue.
 
-**Current release:** `1.0.9` beta, released `2026/05/27`.
+**Current release:** `1.1.0` beta, released `2026/06/05`.
 
 FlatCAM Plus is forked from the modern FlatCAM codebase maintained by Marius Stanciu (c) 2019 and based on [FlatCAM](http://flatcam.org/) (c) 2014-2018 Juan Pablo Caram.
 

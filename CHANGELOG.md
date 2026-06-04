@@ -1,10 +1,41 @@
-FlatCAM Plus v1.0.9 BETA (c) 2026 - by Sadri ERCAN
+FlatCAM Plus v1.1.0 BETA (c) 2026 - by Sadri ERCAN
 
 Based on FlatCAM: 
 2D Computer-Aided PCB Manufacturing by (c) 2014-2016 Juan Pablo Caram
 =================================================
 
 CHANGELOG for FlatCAM Plus beta
+
+=================================================
+
+## 2026/06/05 - v1.1.0 Gerber Editor Selection and App Safety Enhancements
+
+### Highlights
+
+- Integrated six contributor fixes from [@codehero](https://github.com/codehero).
+- Added advanced distance and area-based selection to the Gerber Editor.
+- Hardened G-code export and application shortcut routines against crashes.
+- Optimized Tree View rendering performance for large projects.
+
+### Fixed
+
+- Fixed Gerber Editor shape selection to allow click-selection of thin traces and trace edges based on a pick tolerance. Thanks [@codehero](https://github.com/codehero). PR #13.
+- Fixed Gerber Editor selection priorities to pick the closest shape to the click coordinates, preferring smaller-area shapes when overlapping. Thanks [@codehero](https://github.com/codehero). PR #13.
+- Fixed Gerber Editor selection click tracking to temporarily bypass grid snapping and use raw coordinates, preventing clicked shapes from being missed. Thanks [@codehero](https://github.com/codehero). PR #13.
+- Fixed Gerber import coordinates by disabling automatic workspace alignment so that copper and drill layers remain perfectly aligned. Thanks [@codehero](https://github.com/codehero). PR #16.
+- Fixed geometry plotting layer configurations so geometry drawings render on top of filled Gerber elements. Thanks [@codehero](https://github.com/codehero). PR #11.
+- Fixed G-code export renames by using the direct object name and updating the model directly when the Properties UI is closed or unavailable. Thanks [@codehero](https://github.com/codehero). PR #12.
+- Fixed application crash when pressing the Delete key with no active object selected. Thanks [@codehero](https://github.com/codehero). PR #15.
+- Fixed project collection update view performance by emitting targeted cell refreshes instead of invalid full-view indexes. Thanks [@codehero](https://github.com/codehero). PR #14.
+
+### Changed
+
+- Set z-order of selection outline (`sel_shapes`) and hover highlight (`hover_shapes`) collections to be drawn on top of all canvas elements. Thanks [@codehero](https://github.com/codehero). PR #13.
+
+### Validation
+
+- Verified all six pull requests merge cleanly into `main`.
+- Verified G-code export, Gerber import, and Gerber editor selection workflows.
 
 =================================================
 

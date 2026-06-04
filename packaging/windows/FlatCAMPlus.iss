@@ -3,7 +3,7 @@
 #define AppPublisher "FlatCAM Plus"
 
 #ifndef AppVersion
-#define AppVersion "1.0.9"
+#define AppVersion "1.1.0"
 #endif
 
 #ifndef AppArch
