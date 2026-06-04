@@ -1131,8 +1131,33 @@ class ObjectCollection(QtCore.QAbstractItemModel):
 
         return obj_list
 
-    def update_view(self):
-        self.dataChanged.emit(QtCore.QModelIndex(), QtCore.QModelIndex())   # noqa
+    def update_view(self, obj=None):
+        def emit_changed(top_left, bottom_right=None):
+            if top_left.isValid():
+                self.dataChanged.emit(top_left, bottom_right or top_left)   # noqa
+
+        if obj is not None:
+            emit_changed(self.item_index(getattr(obj, 'item', None)))
+            return
+
+        project_index = self.item_index(self.project_item)
+        emit_changed(project_index)
+
+        if self.project_item.child_count():
+            emit_changed(
+                self.index(0, 0, project_index),
+                self.index(self.project_item.child_count() - 1, 0, project_index)
+            )
+
+        for group in self.group_items.values():
+            if not group.child_count():
+                continue
+
+            group_index = self.item_index(group)
+            emit_changed(
+                self.index(0, 0, group_index),
+                self.index(group.child_count() - 1, 0, group_index)
+            )
 
     def on_row_activated(self, index):
         if index.isValid():

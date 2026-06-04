@@ -351,16 +351,18 @@ class FlatCAMObj(QtCore.QObject, _QtInitTerminator):
         if new_name != old_name:
             # update the SHELL auto-completer model data
             try:
-                self.app.regFK.remove_keyword(old_name, update=False)
+                try:
+                    self.app.regFK.remove_keyword(old_name, update=False)
+                except ValueError:
+                    pass
                 self.app.regFK.prepend_keyword(new_name)
-                self.app.ui.code_editor.set_model_data(self.app.regFK.myKeywords)
-            except Exception:
+            except Exception as e:
                 self.app.log.debug(
-                    "on_name_activate() --> Could not remove the old object name from auto-completer model list")
+                    "on_name_activate() --> Could not update the auto-completer model list: %s" % str(e))
 
             self.obj_options["name"] = self.ui.name_entry.get_value()
             self.default_data["name"] = self.ui.name_entry.get_value()
-            self.app.collection.update_view()
+            self.app.collection.update_view(self)
             if silent:
                 self.app.inform.emit('[success] %s: %s %s: %s' % (
                     _("Name changed from"), str(old_name), _("to"), str(new_name)
