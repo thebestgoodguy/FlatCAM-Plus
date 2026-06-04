@@ -2257,8 +2257,6 @@ class appIO(QtCore.QObject):
             if parse_ret_val:
                 return parse_ret_val
 
-            self.keep_object_inside_workspace(gerber_obj)
-
         self.log.debug("open_gerber()")
         if not self._ensure_project_workspace():
             return
