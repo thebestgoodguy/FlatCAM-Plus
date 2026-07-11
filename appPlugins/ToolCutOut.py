@@ -102,6 +102,67 @@ class CutOut(AppTool):
         # here store the tool data for the Cutout Tool
         self.cut_tool_dict = {}
 
+    @staticmethod
+    def _classify_contours(geometries: list) -> set:
+        """
+        Classify polygons as interior (contained within a larger exterior polygon).
+
+        For PCB profile Gerbers with multiple contours (external outline + internal slots),
+        this detects which polygons are internal cutouts so they can receive inverted offset
+        (cut inside the hole instead of outside).
+
+        Args:
+            geometries: List of Shapely geometries (output of flatten_shapely_geometry).
+
+        Returns:
+            Set of indices of geometries classified as interior contours.
+            Geometries NOT in the set are considered exterior contours.
+        """
+        if len(geometries) <= 1:
+            return set()
+
+        # Build filled polygons from each geometry's exterior ring.
+        # The solid_geometry from Gerber profile is a thin band (buffered LineString),
+        # so we need Polygon(geo.exterior) to get a filled shape for containment tests.
+        filled_polys = []
+        for geo in geometries:
+            try:
+                if hasattr(geo, 'exterior'):
+                    filled_polys.append(Polygon(geo.exterior))
+                else:
+                    # Geometry without exterior (e.g. LineString) — use convex_hull as proxy
+                    filled_polys.append(geo.convex_hull)
+            except Exception:
+                filled_polys.append(None)
+
+        # Find the polygon with the largest area — this is the exterior candidate
+        max_area = -1
+        exterior_idx = 0
+        for i, fp in enumerate(filled_polys):
+            if fp is not None and fp.area > max_area:
+                max_area = fp.area
+                exterior_idx = i
+
+        exterior_filled = filled_polys[exterior_idx]
+        if exterior_filled is None or exterior_filled.is_empty:
+            return set()
+
+        # Test each other polygon: if its representative point is inside the exterior,
+        # it is an interior contour (slot/cutout).
+        interior_indices = set()
+        for i, geo in enumerate(geometries):
+            if i == exterior_idx:
+                continue
+            try:
+                test_point = geo.representative_point()
+                if exterior_filled.contains(test_point):
+                    interior_indices.add(i)
+            except Exception:
+                # If representative_point fails, treat as exterior (safe default)
+                pass
+
+        return interior_indices
+
     def on_type_obj_changed(self, val):
         obj_type = {'grb': 0, 'geo': 2}[val]
         self.ui.obj_combo.setRootModelIndex(self.app.collection.get_group_index(obj_type))
@@ -789,10 +850,26 @@ class CutOut(AppTool):
                         gaps_solid_geo = rest_geo
                 else:
                     object_geo = flatten_shapely_geometry(object_geo)
-                    for geom_struct in object_geo:
+
+                    # Classify interior vs exterior contours for automatic offset direction
+                    interior_indices = self._classify_contours(object_geo)
+
+                    for i, geom_struct in enumerate(object_geo):
                         if cutout_obj.kind == 'gerber':
                             if margin >= 0:
-                                geom_struct = (geom_struct.buffer(margin + abs(cut_dia / 2))).exterior
+                                buffered = geom_struct.buffer(margin + abs(cut_dia / 2))
+                                if i in interior_indices:
+                                    # Interior contour (slot/cutout): offset inside the hole
+                                    if buffered.interiors:
+                                        geom_struct = buffered.interiors[0]
+                                    else:
+                                        self.app.log.warning(
+                                            "Cutout: interior contour %d has no interiors after buffer. "
+                                            "Using exterior as fallback." % i)
+                                        geom_struct = buffered.exterior
+                                else:
+                                    # Exterior contour: offset outside the board
+                                    geom_struct = buffered.exterior
                             else:
                                 geom_struct_buff = geom_struct.buffer(-margin + abs(cut_dia / 2))
                                 geom_struct = geom_struct_buff.interiors
