@@ -1682,17 +1682,10 @@ class Gerber(Geometry):
 
             # this treats the case when we are storing geometry as solids
             try:
-                # Flatten poly_buffer to ensure it only contains individual Polygons
-                # Useful when a macro generates additional polygons, which can result in an error if not flattened
-                flat_poly_buffer = []
-                for poly in poly_buffer:
-                    if poly is not None and not poly.is_empty:
-                        # If it's already a MultiPolygon, extract its individual components
-                        if hasattr(poly, 'geoms'):
-                            flat_poly_buffer.extend(poly.geoms)
-                        else:
-                            flat_poly_buffer.append(poly)
-                buff_length = len(flat_poly_buffer)
+                self.follow_geometry = flatten_shapely_geometry(follow_buffer)
+                poly_buffer = flatten_shapely_geometry(poly_buffer)
+                
+                buff_length = len(poly_buffer)
             except TypeError:
                 buff_length = 1
 
@@ -1717,7 +1710,7 @@ class Gerber(Geometry):
             if self.use_buffer_for_union:
                 self.app.log.debug("Union by buffer...")
 
-                new_poly = MultiPolygon(flat_poly_buffer)
+                new_poly = MultiPolygon(poly_buffer)
                 if self.app.options["gerber_buffering"] == 'full':
                     new_poly = new_poly.buffer(0.000001)
                     new_poly = new_poly.buffer(-0.000001)
@@ -1725,7 +1718,7 @@ class Gerber(Geometry):
 
             else:
                 self.app.log.debug("Union by union()...")
-                new_poly = unary_union(flat_poly_buffer)
+                new_poly = unary_union(poly_buffer)
                 new_poly = new_poly.buffer(0, int(self.steps_per_circle))
                 self.app.log.warning("Union done.")
 
