@@ -1293,6 +1293,7 @@ class ToolIsolation(Gerber, AppTool):
                     if 'solid' in geo_el and geo_el['solid'] is not None and geo_el['solid'].is_valid:
                         total_geo.append(geo_el['solid'])
 
+        total_geo = flatten_shapely_geometry(total_geo)
         total_geo = MultiPolygon(total_geo)
         total_geo = total_geo.buffer(0)
 

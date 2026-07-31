@@ -1682,6 +1682,9 @@ class Gerber(Geometry):
 
             # this treats the case when we are storing geometry as solids
             try:
+                self.follow_geometry = flatten_shapely_geometry(follow_buffer)
+                poly_buffer = flatten_shapely_geometry(poly_buffer)
+                
                 buff_length = len(poly_buffer)
             except TypeError:
                 buff_length = 1
